@@ -19,9 +19,10 @@ export default function RestauranteHeader({
 }: Props) {
   return (
     <Box sx={{ position: "relative", width: "100%" }}>
+      {/* Imagem de fundo */}
       <Box
         sx={{
-          height: 200,
+          height: { xs: 180, sm: 200 }, // Ajusta a altura da imagem dependendo da tela
           backgroundImage: `url(${
             imagemFundo || "https://via.placeholder.com/1200x300"
           })`,
@@ -30,24 +31,30 @@ export default function RestauranteHeader({
         }}
       />
 
+      {/* Paper com o conteúdo do restaurante */}
       <Paper
         elevation={3}
         sx={{
           position: "relative",
-          top: -40,
+          top: -100,
           mx: "auto",
           p: 2,
           borderRadius: 2,
-          maxWidth: 600,
+          maxWidth: 600, // Limita a largura no desktop
+          width: "90%", // Garante que ocupe 90% da largura no mobile
           textAlign: "center",
         }}
       >
+        {/* Logo do restaurante */}
         <Avatar
           src={logo || "https://via.placeholder.com/80"}
           sx={{ width: 80, height: 80, mx: "auto", mb: 1 }}
         />
+
+        {/* Nome do restaurante */}
         <Typography variant="h6">{nome}</Typography>
 
+        {/* Informações adicionais do restaurante */}
         <Box
           sx={{
             display: "flex",
@@ -55,6 +62,7 @@ export default function RestauranteHeader({
             mt: 1,
             fontSize: 14,
             color: "#666",
+            flexDirection: { xs: "column", sm: "row" }, // No mobile, empilha as informações
           }}
         >
           <span>{tempo}</span>

@@ -1,6 +1,6 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { Box, Typography, Container } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import LayoutRestaurante from "@/components/LayoutRestaurant";
 import RestauranteHeader from "@/components/RestaurantHeader";
 import ProductCard from "@/components/ProductCard";
@@ -81,6 +81,13 @@ const mockProductsByCategory = [
   },
 ];
 
+function easeInOutQuad(t: number, b: number, c: number, d: number) {
+  let x = t / (d / 2);
+  if (x < 1) return (c / 2) * x * x + b;
+  x--;
+  return (-c / 2) * (x * (x - 2) - 1) + b;
+}
+
 export default function RestaurantePage() {
   const { query } = useRouter();
   const [restaurantName, setRestaurantName] = useState("");
@@ -93,20 +100,46 @@ export default function RestaurantePage() {
     }
   }, [query.slug]);
 
-  // Filtrar produtos por categoria e busca
-  const filteredProductsByCategory = mockProductsByCategory
-    .map((cat) => ({
-      categoria: cat.categoria,
-      produtos: cat.produtos.filter(
-        (prod) =>
-          (selectedCategory === "" || cat.categoria === selectedCategory) &&
-          prod.name.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    }))
-    .filter((cat) => cat.produtos.length > 0);
+  const filteredProductsByCategory = mockProductsByCategory.map((cat) => ({
+    categoria: cat.categoria,
+    produtos: cat.produtos.filter((prod) =>
+      prod.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+  }));
+
+  // Função para rolar até a categoria com navegação suave
+  const smoothScrollToCategory = (categoria: string) => {
+    const targetElement = document.getElementById(categoria);
+
+    if (!targetElement) return;
+
+    // Posições de rolagem
+    const startPosition = window.pageYOffset;
+    const targetPosition = targetElement.offsetTop;
+    const distance = targetPosition - startPosition;
+    const duration = 800; // Duração da animação em ms
+    let startTime: number = 0;
+
+    // Função para calcular o progresso da rolagem
+    const animation = (currentTime: number) => {
+      if (startTime === 0) startTime = currentTime;
+
+      const progress = currentTime - startTime;
+      const scroll = easeInOutQuad(progress, startPosition, distance, duration);
+
+      window.scrollTo(0, scroll);
+
+      if (progress < duration) {
+        requestAnimationFrame(animation);
+      }
+    };
+
+    // Inicia a animação
+    requestAnimationFrame(animation);
+  };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Box>
       <RestauranteHeader
         nome={restaurantName || "Carregando..."}
         imagemFundo="https://images.dailyhive.com/20190920101433/burg1.jpeg"
@@ -118,20 +151,28 @@ export default function RestaurantePage() {
           backgroundColor: "#fff",
           borderRadius: 3,
           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-          p: 3,
-          mt: -10,
+          mt: -15,
+          width: "100%",
+          overflow: "hidden",
         }}
       >
         <LayoutRestaurante title="">
           <CategoryFilter
             categories={mockProductsByCategory.map((c) => c.categoria)}
             selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
+            onSelectCategory={(category) => {
+              setSelectedCategory(category);
+              smoothScrollToCategory(category); // Chama o scroll suave
+            }}
             onSearch={setSearchTerm}
           />
 
           {filteredProductsByCategory.map((categoria) => (
-            <Box key={categoria.categoria} sx={{ mb: 4 }}>
+            <Box
+              id={categoria.categoria} // Adicionando um ID para ancoragem
+              key={categoria.categoria}
+              sx={{ mb: 4 }}
+            >
               <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
                 {categoria.categoria}
               </Typography>
@@ -162,6 +203,6 @@ export default function RestaurantePage() {
           ))}
         </LayoutRestaurante>
       </Box>
-    </Container>
+    </Box>
   );
 }

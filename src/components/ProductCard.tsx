@@ -7,32 +7,37 @@ import {
   Button,
 } from "@mui/material";
 
+// Definindo a interface para o Produto
 interface Product {
   id: string;
   name: string;
   description: string;
   price: number;
   image_url: string;
-  price_from?: boolean;
+  price_from?: boolean; // Usado quando o preço é "a partir de"
 }
 
 interface Props {
   product: Product;
-  onAddToCart?: (product: Product) => void;
-  variant?: "vertical" | "horizontal";
+  onAddToCart?: (product: Product) => void; // Função opcional para adicionar ao carrinho
+  variant?: "vertical" | "horizontal"; // Tipo de layout para o cartão
+  onClick?: (product: Product) => void; // Função de clique opcional para abrir o modal
 }
 
 export default function ProductCard({
   product,
   onAddToCart,
-  variant = "vertical",
+  onClick, // Função de clique do cartão
+  variant = "vertical", // Padrão é 'vertical'
 }: Props) {
-  const priceColor = product.price_from ? "green" : "black";
+  const priceColor = product.price_from ? "green" : "black"; // Definindo a cor do preço
 
+  // Renderização no formato horizontal (imagem ao lado do conteúdo)
   if (variant === "horizontal") {
     return (
       <Card
         sx={{ display: "flex", justifyContent: "space-between", p: 1, mb: 2 }}
+        onClick={() => onClick?.(product)} // Torna o cartão clicável
       >
         <Box sx={{ flex: 1 }}>
           <Typography fontWeight="bold">{product.name}</Typography>
@@ -52,7 +57,10 @@ export default function ProductCard({
             color="success"
             size="small"
             sx={{ mt: 1 }}
-            onClick={() => onAddToCart?.(product)}
+            onClick={(e) => {
+              e.stopPropagation(); // Evita que o clique no botão "Adicionar" também dispare o clique do cartão
+              onAddToCart?.(product);
+            }}
           >
             Adicionar
           </Button>
@@ -73,16 +81,17 @@ export default function ProductCard({
     );
   }
 
-  // Estilo vertical (cartão padrão com imagem em cima)
+  // Renderização no formato vertical (imagem em cima)
   return (
     <Card
       sx={{
         display: "flex",
-        justifyContent: "space-between",
+        flexDirection: "column", // As cards verticais precisam de flexDirection 'column'
         p: 1,
         mb: 2,
         height: "100%",
       }}
+      onClick={() => onClick?.(product)} // Torna o cartão clicável
     >
       <CardMedia
         component="img"
@@ -104,7 +113,10 @@ export default function ProductCard({
         <Button
           fullWidth
           variant="contained"
-          onClick={() => onAddToCart?.(product)}
+          onClick={(e) => {
+            e.stopPropagation(); // Evita que o clique no botão "Adicionar" também dispare o clique do cartão
+            onAddToCart?.(product);
+          }}
         >
           Adicionar
         </Button>

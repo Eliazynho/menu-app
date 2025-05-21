@@ -5,51 +5,55 @@ import LayoutRestaurante from "@/components/LayoutRestaurant";
 import RestauranteHeader from "@/components/RestaurantHeader";
 import ProductCard from "@/components/ProductCard";
 import CategoryFilter from "@/components/CategoryFilter";
+import ProductModal from "@/components/ProductModal";
+import { Product } from "@/types";
 
 const mockProductsByCategory = [
   {
-    categoria: "Especial do Mês",
+    categoria: "Burgers",
     produtos: [
       {
         id: "1",
         name: "Majestoso Burger + fritas",
         description:
-          "Blend de 180 gramas defumado na lenha frutífera, queijo camembert, crispy de presunto de Parma, geleia de damasco no pão de brioche e molho baconese",
+          "Blend de 180 gramas defumado na lenha frutífera, queijo camembert, crispy de presunto de Parma, geleia de damasco no pão de brioche e molho baconese.",
         price: 47.9,
-        image_url:
-          "https://scontent.fcau18-1.fna.fbcdn.net/v/t51.75761-15/481274160_18487254970027600_6155508512885900558_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=127cfc&_nc_ohc=6IX7JgwvGBIQ7kNvwHRW_I4&_nc_oc=AdmeE2IJ8t5o9oFvIKfwPltNFyvsIlp4Lz-RO046X7nUb2f4v87-xkKzAFvbMv0roK-m9nsDZGN13VlQCrRCT6es&_nc_zt=23&_nc_ht=scontent.fcau18-1.fna&_nc_gid=FoIKJwETvlXEnDXmWycPNw&oh=00_AfJzWRaCNEwuFnLcWzoe8mzczQX1nj05-9pEZ1wmnpl9Cw&oe=683143FE",
+        image_url: "https://example.com/image1.jpg", // Imagem do produto
+        price_from: false,
+        additionalOptions: ["Queijo extra", "Batata extra", "Molho especial"], // Opções adicionais para o produto
       },
-    ],
-  },
-  {
-    categoria: "Burgers",
-    produtos: [
       {
         id: "2",
         name: "Plebeu Burger + fritas",
         description:
-          "Blend defumado, queijo prato, bacon, batata canoa e onions",
+          "Blend defumado, queijo prato, bacon, batata canoa e onions.",
         price: 39.9,
-        image_url:
-          "https://scontent.fcau18-1.fna.fbcdn.net/v/t51.75761-15/481274160_18487254970027600_6155508512885900558_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=127cfc&_nc_ohc=6IX7JgwvGBIQ7kNvwHRW_I4&_nc_oc=AdmeE2IJ8t5o9oFvIKfwPltNFyvsIlp4Lz-RO046X7nUb2f4v87-xkKzAFvbMv0roK-m9nsDZGN13VlQCrRCT6es&_nc_zt=23&_nc_ht=scontent.fcau18-1.fna&_nc_gid=FoIKJwETvlXEnDXmWycPNw&oh=00_AfJzWRaCNEwuFnLcWzoe8mzczQX1nj05-9pEZ1wmnpl9Cw&oe=683143FE",
+        image_url: "https://example.com/image2.jpg", // Imagem do produto
+        price_from: true,
+        additionalOptions: [
+          "Queijo extra",
+          "Cebola caramelizada",
+          "Molho barbecue",
+        ], // Opções adicionais para o produto
       },
       {
         id: "3",
         name: "Barão Burger + fritas",
         description:
-          "180g defumado, cheddar, bacon, cebola caramelizada e batata",
+          "180g defumado, cheddar, bacon, cebola caramelizada e batata.",
         price: 40.9,
-        image_url:
-          "https://scontent.fcau18-1.fna.fbcdn.net/v/t51.75761-15/481274160_18487254970027600_6155508512885900558_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=127cfc&_nc_ohc=6IX7JgwvGBIQ7kNvwHRW_I4&_nc_oc=AdmeE2IJ8t5o9oFvIKfwPltNFyvsIlp4Lz-RO046X7nUb2f4v87-xkKzAFvbMv0roK-m9nsDZGN13VlQCrRCT6es&_nc_zt=23&_nc_ht=scontent.fcau18-1.fna&_nc_gid=FoIKJwETvlXEnDXmWycPNw&oh=00_AfJzWRaCNEwuFnLcWzoe8mzczQX1nj05-9pEZ1wmnpl9Cw&oe=683143FE",
+        image_url: "https://example.com/image3.jpg", // Imagem do produto
+        price_from: false,
+        additionalOptions: ["Queijo cheddar", "Molho picante"], // Opções adicionais para o produto
       },
       {
         id: "4",
         name: "Cavaleiro Burger + Fritas",
-        description: "Defumado + provolone + jalapeño + batata canoa",
+        description: "Defumado + provolone + jalapeño + batata canoa.",
         price: 41.9,
         price_from: true,
-        image_url:
-          "https://scontent.fcau18-1.fna.fbcdn.net/v/t51.75761-15/481274160_18487254970027600_6155508512885900558_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=127cfc&_nc_ohc=6IX7JgwvGBIQ7kNvwHRW_I4&_nc_oc=AdmeE2IJ8t5o9oFvIKfwPltNFyvsIlp4Lz-RO046X7nUb2f4v87-xkKzAFvbMv0roK-m9nsDZGN13VlQCrRCT6es&_nc_zt=23&_nc_ht=scontent.fcau18-1.fna&_nc_gid=FoIKJwETvlXEnDXmWycPNw&oh=00_AfJzWRaCNEwuFnLcWzoe8mzczQX1nj05-9pEZ1wmnpl9Cw&oe=683143FE",
+        image_url: "https://example.com/image4.jpg", // Imagem do produto
+        additionalOptions: ["Molho extra", "Batata canoa"], // Opções adicionais para o produto
       },
     ],
   },
@@ -63,6 +67,18 @@ const mockProductsByCategory = [
         price: 8.9,
         image_url:
           "https://images.tcdn.com.br/img/img_prod/1115696/coca_cola_original_lata_350ml_27_1_152c3b66fb7a84db006d3238b116cb50.png",
+        price_from: false,
+        additionalOptions: ["Sem gelo", "Com gelo"], // Opções adicionais para o produto
+      },
+      {
+        id: "6",
+        name: "Guaraná Antarctica 2L",
+        description: "Guaraná Antarctica 2L",
+        price: 9.5,
+        image_url:
+          "https://images.tcdn.com.br/img/img_prod/1115696/guarana_antarctica_original_lata_350ml_27_1_152c3b66fb7a84db006d3238b116cb50.png",
+        price_from: false,
+        additionalOptions: ["Sem gelo", "Com gelo"], // Opções adicionais para o produto
       },
     ],
   },
@@ -70,12 +86,37 @@ const mockProductsByCategory = [
     categoria: "Sobremesas",
     produtos: [
       {
-        id: "6",
+        id: "7",
         name: "Sorvete de Chocolate",
         description: "Sorvete de Chocolate",
         price: 8.9,
-        image_url:
-          "https://images.tcdn.com.br/img/img_prod/1115696/coca_cola_original_lata_350ml_27_1_152c3b66fb7a84db006d3238b116cb50.png",
+        image_url: "https://example.com/sorvete-chocolate.jpg", // Imagem do produto
+        price_from: false,
+        additionalOptions: ["Cobertura de calda de chocolate", "Granulado"], // Opções adicionais para o produto
+      },
+      {
+        id: "8",
+        name: "Pudim de Leite",
+        description: "Delicioso pudim de leite condensado",
+        price: 7.5,
+        image_url: "https://example.com/pudim.jpg", // Imagem do produto
+        price_from: true,
+        additionalOptions: ["Cobertura de caramelo", "Sem cobertura"], // Opções adicionais para o produto
+      },
+    ],
+  },
+  {
+    categoria: "Especial do Mês",
+    produtos: [
+      {
+        id: "9",
+        name: "Burger Especial do Mês",
+        description:
+          "Burger exclusivo do mês, com blend de carne especial, cebola roxa caramelizada e queijo brie.",
+        price: 55.0,
+        image_url: "https://example.com/burger-especial.jpg", // Imagem do produto
+        price_from: false,
+        additionalOptions: ["Bacon", "Queijo brie extra"], // Opções adicionais para o produto
       },
     ],
   },
@@ -93,6 +134,21 @@ export default function RestaurantePage() {
   const [restaurantName, setRestaurantName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [openModal, setOpenModal] = useState(false); // Controle do modal
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null); // Produto selecionado
+
+  // Abre o modal
+  const handleOpenModal = (product: Product) => {
+    setSelectedProduct(product); // Define o produto selecionado
+    setOpenModal(true); // Abre o modal
+  };
+
+  // Fecha o modal
+  const handleCloseModal = () => {
+    setOpenModal(false); // Fecha o modal
+    setSelectedProduct(null); // Limpa o produto selecionado
+  };
 
   useEffect(() => {
     if (query.slug) {
@@ -113,14 +169,12 @@ export default function RestaurantePage() {
 
     if (!targetElement) return;
 
-    // Posições de rolagem
     const startPosition = window.pageYOffset;
     const targetPosition = targetElement.offsetTop;
     const distance = targetPosition - startPosition;
-    const duration = 800; // Duração da animação em ms
+    const duration = 800;
     let startTime: number = 0;
 
-    // Função para calcular o progresso da rolagem
     const animation = (currentTime: number) => {
       if (startTime === 0) startTime = currentTime;
 
@@ -134,7 +188,6 @@ export default function RestaurantePage() {
       }
     };
 
-    // Inicia a animação
     requestAnimationFrame(animation);
   };
 
@@ -169,7 +222,7 @@ export default function RestaurantePage() {
 
           {filteredProductsByCategory.map((categoria) => (
             <Box
-              id={categoria.categoria} // Adicionando um ID para ancoragem
+              id={categoria.categoria}
               key={categoria.categoria}
               sx={{ mb: 4 }}
             >
@@ -188,14 +241,16 @@ export default function RestaurantePage() {
                 {categoria.produtos.map((product) => (
                   <Box
                     key={product.id}
-                    sx={{
-                      width: {
-                        xs: "100%", // mobile 1 por linha
-                        sm: "48%", // tablet+ 2 por linha
-                      },
-                    }}
+                    sx={{ width: { xs: "100%", sm: "48%" } }}
                   >
-                    <ProductCard product={product} variant="horizontal" />
+                    <ProductCard
+                      product={product}
+                      variant="horizontal"
+                      onAddToCart={(product) => {
+                        console.log(`${product.name} adicionado ao carrinho!`);
+                      }}
+                      onClick={(product) => handleOpenModal(product)} // Passando a função handleOpenModal com o produto
+                    />
                   </Box>
                 ))}
               </Box>
@@ -203,6 +258,18 @@ export default function RestaurantePage() {
           ))}
         </LayoutRestaurante>
       </Box>
+
+      {/* Modal do Produto */}
+      <ProductModal
+        open={openModal}
+        onClose={handleCloseModal}
+        product={selectedProduct}
+        onAddToCart={(product, additionalOption) => {
+          console.log(
+            `Produto ${product.name} adicionado com a opção ${additionalOption}`
+          );
+        }}
+      />
     </Box>
   );
 }

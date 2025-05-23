@@ -219,43 +219,50 @@ export default function RestaurantePage() {
             }}
             onSearch={setSearchTerm}
           />
-
-          {filteredProductsByCategory.map((categoria) => (
-            <Box
-              id={categoria.categoria}
-              key={categoria.categoria}
-              sx={{ mb: 4 }}
-            >
-              <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-                {categoria.categoria}
-              </Typography>
-
+          <Box
+            sx={{
+              mt: { xs: 10, sm: 0 },
+            }}
+          >
+            {filteredProductsByCategory.map((categoria) => (
               <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 2,
-                  justifyContent: "space-between",
-                }}
+                id={categoria.categoria}
+                key={categoria.categoria}
+                sx={{ mb: 4, mt: 2 }}
               >
-                {categoria.produtos.map((product) => (
-                  <Box
-                    key={product.id}
-                    sx={{ width: { xs: "100%", sm: "48%" } }}
-                  >
-                    <ProductCard
-                      product={product}
-                      variant="horizontal"
-                      onAddToCart={(product) => {
-                        console.log(`${product.name} adicionado ao carrinho!`);
-                      }}
-                      onClick={(product) => handleOpenModal(product)} // Passando a função handleOpenModal com o produto
-                    />
-                  </Box>
-                ))}
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                  {categoria.categoria}
+                </Typography>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 2,
+                    justifyContent: "space-between",
+                  }}
+                >
+                  {categoria.produtos.map((product) => (
+                    <Box
+                      key={product.id}
+                      sx={{ width: { xs: "100%", sm: "48%" } }}
+                    >
+                      <ProductCard
+                        product={product}
+                        variant="horizontal"
+                        onAddToCart={(product) => {
+                          console.log(
+                            `${product.name} adicionado ao carrinho!`
+                          );
+                        }}
+                        onClick={(product) => handleOpenModal(product)} // Passando a função handleOpenModal com o produto
+                      />
+                    </Box>
+                  ))}
+                </Box>
               </Box>
-            </Box>
-          ))}
+            ))}
+          </Box>
         </LayoutRestaurante>
       </Box>
 

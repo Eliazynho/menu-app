@@ -4,13 +4,11 @@ import {
   Button,
   TextField,
   Stack,
-  Select,
-  MenuItem,
   FormControl,
-  InputLabel,
   InputAdornment,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import ReactSelect from "react-select"; // Import React Select
 
 interface CategoryFilterProps {
   categories: string[];
@@ -26,27 +24,25 @@ export default function CategoryFilter({
   onSearch,
 }: CategoryFilterProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSticky, setIsSticky] = useState(false); // Controle para o sticky
-  const filterRef = useRef<HTMLDivElement>(null); // Referência para o filtro
-  const filterHeight = useRef<number>(0); // Para armazenar a altura do filtro
+  const [isSticky, setIsSticky] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const filterHeight = useRef<number>(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const filterElement = filterRef.current;
       if (!filterElement) return;
 
-      // Se o filtro for visível, salva a altura
       if (filterHeight.current === 0) {
         filterHeight.current = filterElement.offsetHeight;
       }
 
       const rect = filterElement.getBoundingClientRect();
 
-      // Verifica se a parte superior do filtro atingiu o topo da tela
       if (rect.top <= 0) {
-        setIsSticky(true); // Fixa o filtro no topo
+        setIsSticky(true);
       } else {
-        setIsSticky(false); // Volta ao fluxo normal
+        setIsSticky(false);
       }
     };
 
@@ -62,29 +58,39 @@ export default function CategoryFilter({
     return () => clearTimeout(handler);
   }, [searchTerm, onSearch]);
 
+  // Mapeia categories para opções do react-select
+  const options = [
+    { value: "", label: "Selecione uma categorias" },
+    ...categories.map((cat) => ({ value: cat, label: cat })),
+  ];
+
+  // Encontra o objeto option selecionado pelo value
+  const selectedOption =
+    options.find((option) => option.value === selectedCategory) || options[0];
+
   return (
     <Box
       ref={filterRef}
       sx={{
         position: "relative",
-        height: filterHeight.current > 0 ? filterHeight.current : "auto", // Mantém a altura do filtro
+        height: filterHeight.current > 0 ? filterHeight.current : "auto",
       }}
     >
-      {/* Box adicional para garantir que o espaço sempre seja mantido */}
       <Box
         sx={{
-          position: isSticky ? "fixed" : "relative", // Fica fixo quando atingido o topo
+          position: isSticky ? "fixed" : "relative",
           top: 0,
           zIndex: 1100,
-          backgroundColor: "white",
+          backgroundColor: "primary.main",
+          borderRadius: isSticky ? "0 0 8px 8px" : "8px", // Apenas bordas inferiores arredondadas quando fixo
           mb: 2,
           borderBottom: "1px solid #ddd",
           boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-          width: isSticky ? "100vw" : "100%", // Quando fixo, ocupa 100% da largura da tela
-          left: 0, // Para garantir que o filtro esteja alinhado com a tela
-          padding: "10px", // Ajuste o padding conforme necessário
-          transition: "top 0.3s ease-in-out", // Transição suave para o sticky
-          height: filterHeight.current > 0 ? filterHeight.current : "auto", // Mantém a altura do filtro
+          width: isSticky ? "100vw" : "100%",
+          left: 0,
+          padding: "10px",
+          transition: "top 0.3s ease-in-out",
+          height: "auto",
         }}
       >
         <Stack
@@ -94,30 +100,29 @@ export default function CategoryFilter({
           justifyContent="space-between"
           sx={{ overflow: "visible" }}
         >
-          {/* Mobile - Rolagem Horizontal para as categorias */}
+          {/* Mobile - botões para categorias */}
           <Box
             sx={{
               display: { xs: "block", sm: "none" },
-              width: "100%", // Ocupa todo o espaço do container
-              overflowX: "auto", // Permite rolagem horizontal
-              whiteSpace: "nowrap", // Garante que os itens fiquem em uma linha
-              maxWidth: "100%", // Garante que o Box não ultrapasse o container
+              width: "100%",
+              overflowX: "auto",
+              whiteSpace: "nowrap",
+              maxWidth: "100%",
               boxSizing: "border-box",
-              "&::-webkit-scrollbar": { display: "none" }, // Esconde a scrollbar no mobile
-              msOverflowStyle: "none", // Esconde a scrollbar no IE
-              scrollbarWidth: "none", // Esconde a scrollbar no Firefox
+              "&::-webkit-scrollbar": { display: "none" },
+              msOverflowStyle: "none",
+              scrollbarWidth: "none",
             }}
           >
             {categories.map((cat) => (
               <Button
                 key={cat}
                 onClick={() => onSelectCategory(cat)}
-                href={`#${cat}`} // Link para a categoria
+                href={`#${cat}`}
                 sx={{
                   display: "inline-block",
                   fontWeight: 600,
-                  color:
-                    selectedCategory === cat ? "primary.main" : "text.primary",
+                  color: selectedCategory === cat ? "white" : "text.primary",
                   borderBottom:
                     selectedCategory === cat
                       ? "2px solid primary.main"
@@ -125,7 +130,7 @@ export default function CategoryFilter({
                   "&:hover": {
                     borderBottom: "2px solid primary.dark",
                   },
-                  transition: "border-bottom 0.3s ease", // Animação suave na linha
+                  transition: "border-bottom 0.3s ease",
                 }}
               >
                 {cat}
@@ -137,8 +142,7 @@ export default function CategoryFilter({
               sx={{
                 display: "inline-block",
                 fontWeight: 600,
-                color:
-                  selectedCategory === "" ? "primary.main" : "text.primary",
+                color: selectedCategory === "" ? "white" : "text.primary",
                 borderBottom:
                   selectedCategory === ""
                     ? "2px solid primary.main"
@@ -153,38 +157,43 @@ export default function CategoryFilter({
             </Button>
           </Box>
 
-          {/* Desktop - Select para categorias */}
-          <Box sx={{ display: { xs: "none", sm: "block" }, width: "100%" }}>
+          {/* Desktop - React Select para categorias */}
+          <Box sx={{ display: { xs: "none", sm: "block" }, width: "300px" }}>
             <FormControl fullWidth>
-              <InputLabel>Selecionar Categoria</InputLabel>
-              <Select
-                value={selectedCategory}
-                onChange={(e) => onSelectCategory(e.target.value)}
-                label="Selecionar Categoria"
-                sx={{
-                  borderRadius: "12px",
-                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                  "& .MuiSelect-select": {
-                    padding: "12px 20px",
-                    fontSize: "1rem",
-                  },
-                  width: "100%",
-                  maxWidth: "100%",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: selectedCategory ? "primary.main" : "grey.400",
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "primary.dark",
-                  },
+              {/* Label customizado acima */}
+              <ReactSelect
+                options={options}
+                value={selectedOption}
+                onChange={(option) =>
+                  onSelectCategory(option ? option.value : "")
+                }
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    borderRadius: 12,
+                    boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
+                    borderColor: selectedCategory ? "#1976d2" : "#bdbdbd",
+                    padding: "2px",
+                    "&:hover": {
+                      borderColor: "#115293",
+                    },
+                    minHeight: "20px",
+                    minWidth: "300px",
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    borderRadius: 12,
+                  }),
+                  option: (base, state) => ({
+                    ...base,
+                    backgroundColor: state.isFocused ? "#1976d2" : "white",
+                    color: state.isFocused ? "white" : "black",
+                    cursor: "pointer",
+                  }),
                 }}
-              >
-                <MenuItem value="">Todas</MenuItem>
-                {categories.map((cat) => (
-                  <MenuItem key={cat} value={cat}>
-                    {cat}
-                  </MenuItem>
-                ))}
-              </Select>
+                isSearchable={false}
+                placeholder="Selecione uma categoria"
+              />
             </FormControl>
           </Box>
 
@@ -195,7 +204,7 @@ export default function CategoryFilter({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             sx={{
-              width: { xs: "100%", sm: 280 },
+              width: { xs: "100%", sm: "300%" },
               borderRadius: 2,
               backgroundColor: "#f5f5f5",
               "& .MuiOutlinedInput-root": {
@@ -206,7 +215,7 @@ export default function CategoryFilter({
                   boxShadow: "0 3px 10px rgba(0,0,0,0.15)",
                 },
                 "&.Mui-focused": {
-                  boxShadow: "0 0 8px 2px #1976d2",
+                  boxShadow: "0 0 8px 2px primary.main",
                   backgroundColor: "#fff",
                 },
               },

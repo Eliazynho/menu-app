@@ -1,4 +1,4 @@
-import { Box, Typography, Avatar, Paper } from "@mui/material";
+import { Box, Typography, Avatar, Paper, Button } from "@mui/material";
 
 interface Props {
   nome: string;
@@ -15,8 +15,9 @@ export default function RestauranteHeader({
   logo,
   tempo = "40–60 min",
   minimo = "R$ 15,00",
-  status = "Fechado",
+  status = "Aberto",
 }: Props) {
+  const isOpen = status.toLowerCase() === "aberto"; // Verifica se status é "aberto" (case insensitive)
   return (
     <Box sx={{ position: "relative", width: "100%" }}>
       {/* Imagem de fundo */}
@@ -70,7 +71,7 @@ export default function RestauranteHeader({
           >
             <span>{tempo}</span>
             <span>Pedido mínimo: {minimo}</span>
-            <span style={{ color: "red" }}>● {status}</span>
+            <span style={{ color: isOpen ? "green" : "red" }}>● {status}</span>
           </Box>
         </Box>
       </Paper>
@@ -94,8 +95,8 @@ export default function RestauranteHeader({
         <Avatar
           src={logo || "https://via.placeholder.com/80"}
           sx={{
-            width: 80,
-            height: 80,
+            width: 120,
+            height: 120,
             mr: 2, // Espaço à direita do avatar
             border: "4px solid",
             borderColor: "primary.main",
@@ -114,12 +115,50 @@ export default function RestauranteHeader({
               flexDirection: "column", // Empilha as informações no mobile
               fontSize: 14,
               color: "#666",
-              mt: 1,
             }}
           >
-            <span>{tempo}</span>
-            <span>Pedido mínimo: {minimo}</span>
-            <span style={{ color: "red" }}>● {status}</span>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 1, // espaço entre os itens
+              }}
+            >
+              <span>Min: {minimo}</span>
+
+              <Box
+                sx={{
+                  width: "1px",
+                  height: "16px",
+                  backgroundColor: "grey.500",
+                }}
+              />
+
+              <span>{tempo}</span>
+            </Box>
+
+            <Button
+              variant="contained"
+              disabled
+              sx={{
+                pointerEvents: "none",
+                backgroundColor: isOpen ? "green" : "red",
+                color: "white",
+                mt: 1,
+                textTransform: "none",
+                fontWeight: "bold",
+                boxShadow: "none",
+                cursor: "default",
+                "&.Mui-disabled": {
+                  backgroundColor: isOpen ? "green" : "red",
+                  color: "white",
+                  opacity: 1,
+                },
+              }}
+            >
+              {status}
+            </Button>
           </Box>
         </Box>
       </Paper>

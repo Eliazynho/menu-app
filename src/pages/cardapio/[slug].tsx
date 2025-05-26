@@ -18,7 +18,8 @@ const mockProductsByCategory = [
         description:
           "Blend de 180 gramas defumado na lenha frutífera, queijo camembert, crispy de presunto de Parma, geleia de damasco no pão de brioche e molho baconese.",
         price: 47.9,
-        image_url: "https://example.com/image1.jpg", // Imagem do produto
+        image_url:
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsz6s7eTffKTOsh_JMgHK0TPAgZvkVGD9CdQ&s", // Imagem do produto
         price_from: false,
         additionalOptions: ["Queijo extra", "Batata extra", "Molho especial"], // Opções adicionais para o produto
       },
@@ -221,7 +222,7 @@ export default function RestaurantePage() {
           />
           <Box
             sx={{
-              mt: { xs: 10, sm: 0 },
+              mt: { xs: 2, sm: 0 },
             }}
           >
             {filteredProductsByCategory.map((categoria) => (

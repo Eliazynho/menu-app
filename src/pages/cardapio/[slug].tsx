@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import CategoryFilter from "@/components/CategoryFilter";
 import ProductModal from "@/components/ProductModal";
 import { Product } from "@/types";
+import Image from "next/image";
 
 const mockProductsByCategory = [
   {
@@ -194,6 +195,26 @@ export default function RestaurantePage() {
 
   return (
     <Box>
+      <Box
+        sx={{
+          position: "absolute",
+          borderRadius: 3,
+          zIndex: 1000,
+          width: "100%",
+          overflow: "hidden",
+          padding: 2,
+          top: 0, // Você pode ajustar a posição conforme necessário
+          left: 0, // Você pode ajustar a posição conforme necessário
+        }}
+      >
+        <Image
+          src="/menu.svg" // Caminho correto para a imagem no diretório public
+          alt="Imagem de fundo"
+          width={50} // Defina a largura desejada
+          height={50} // Defina a altura desejada
+          layout="intrinsic" // Isso permite que a imagem tenha seu tamanho ajustado de acordo com a largura e altura
+        />
+      </Box>
       <RestauranteHeader
         nome={restaurantName || "Carregando..."}
         imagemFundo="https://images.dailyhive.com/20190920101433/burg1.jpeg"

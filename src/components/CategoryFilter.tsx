@@ -112,6 +112,9 @@ export default function CategoryFilter({
               "&::-webkit-scrollbar": { display: "none" },
               msOverflowStyle: "none",
               scrollbarWidth: "none",
+              backgroundColor: "primary.dark",
+              padding: 1,
+              borderRadius: "12px",
             }}
           >
             {categories.map((cat) => (
@@ -123,6 +126,7 @@ export default function CategoryFilter({
                   display: "inline-block",
                   fontWeight: 600,
                   color: selectedCategory === cat ? "white" : "text.primary",
+                  padding: "4px 8px",
                   borderBottom:
                     selectedCategory === cat
                       ? "2px solid primary.main"

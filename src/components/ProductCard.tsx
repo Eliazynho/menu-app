@@ -19,26 +19,24 @@ interface Product {
 
 interface Props {
   product: Product;
-  onAddToCart?: (product: Product) => void; // Função opcional para adicionar ao carrinho
-  variant?: "vertical" | "horizontal"; // Tipo de layout para o cartão
-  onClick?: (product: Product) => void; // Função de clique opcional para abrir o modal
+  onAddToCart?: (product: Product) => void;
+  variant?: "vertical" | "horizontal";
+  onClick?: (product: Product) => void;
 }
 
 export default function ProductCard({
   product,
   onAddToCart,
-  onClick, // Função de clique do cartão
-  variant = "vertical", // Padrão é 'vertical'
+  onClick,
+  variant = "vertical",
 }: Props) {
-  // Função para resumir a descrição com quebra de texto
   const shortenDescription = (description: string, maxLength: number) => {
     if (description.length > maxLength) {
-      return description.substring(0, maxLength) + "..."; // Adiciona elipse
+      return description.substring(0, maxLength) + "...";
     }
     return description;
   };
 
-  // Renderização no formato horizontal (imagem ao lado do conteúdo)
   if (variant === "horizontal") {
     return (
       <Card
@@ -85,10 +83,10 @@ export default function ProductCard({
         <Box
           sx={{
             display: "flex",
-            alignItems: "center", // Alinha os itens horizontalmente no centro
-            justifyContent: "center", // Alinha os itens verticalmente no centro
-            flexDirection: "column", // Organiza os itens em uma coluna
-            alignContent: "center", // Centraliza se houver várias linhas de itens
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            alignContent: "center",
             ml: 2,
           }}
         >

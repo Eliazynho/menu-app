@@ -18,6 +18,7 @@ export default function RestauranteHeader({
   status = "Aberto",
 }: Props) {
   const isOpen = status.toLowerCase() === "aberto"; // Verifica se status é "aberto" (case insensitive)
+
   return (
     <Box sx={{ position: "relative", width: "100%" }}>
       {/* Imagem de fundo */}
@@ -29,10 +30,23 @@ export default function RestauranteHeader({
           })`,
           backgroundSize: "cover",
           backgroundPosition: "center",
+          position: "relative", // Garantir que o overlay fique sobre a imagem
         }}
-      />
+      >
+        {/* Overlay preto semi-transparente somente sobre a imagem */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.4)", // Preto com 40% de opacidade
+          }}
+        />
+      </Box>
 
-      {/* Paper com o conteúdo do restaurante */}
+      {/* Paper com o conteúdo do restaurante (Desktop) */}
       <Paper
         elevation={3}
         sx={{
@@ -41,7 +55,7 @@ export default function RestauranteHeader({
           mx: "auto",
           p: 2,
           borderRadius: 2,
-          maxWidth: 600, // Limita a largura no desktop
+          maxWidth: 600,
           display: { xs: "none", sm: "block" },
           width: "90%", // Garante que ocupe 90% da largura no mobile
           textAlign: "center",
@@ -75,7 +89,8 @@ export default function RestauranteHeader({
           </Box>
         </Box>
       </Paper>
-      {/* Paper com o conteúdo do restaurante (mobile) */}
+
+      {/* Paper com o conteúdo do restaurante (Mobile) */}
       <Paper
         elevation={3}
         sx={{

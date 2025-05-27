@@ -37,24 +37,25 @@ export default function ProductCard({
     return description;
   };
 
+  const cardStyles = {
+    display: "flex",
+    flexDirection: variant === "vertical" ? "column" : "row", // Flex direção conforme o variant
+    p: 1, // Reduzimos o padding para tornar o card mais compacto
+    mb: 1, // Reduzimos a margem para ajustar o espaçamento
+    borderRadius: 2,
+    boxShadow: 2,
+    transition: "0.3s ease-in-out",
+    "&:hover": {
+      boxShadow: 4,
+      transform: "translateY(-5px)",
+    },
+    height: variant === "vertical" ? 300 : "auto", // Menor altura no vertical
+  };
+
+  // Layout Horizontal
   if (variant === "horizontal") {
     return (
-      <Card
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          p: 2,
-          mb: 2,
-          borderRadius: 2,
-          boxShadow: 2,
-          transition: "0.3s ease-in-out",
-          "&:hover": {
-            boxShadow: 4,
-            transform: "translateY(-5px)",
-          },
-        }}
-        onClick={() => onClick?.(product)} // Torna o cartão clicável
-      >
+      <Card sx={cardStyles} onClick={() => onClick?.(product)}>
         <Box sx={{ flex: 1 }}>
           <Typography
             variant="h6"
@@ -118,28 +119,12 @@ export default function ProductCard({
     );
   }
 
-  // Renderização no formato vertical (imagem em cima)
+  // Layout Vertical
   return (
-    <Card
-      sx={{
-        display: "flex",
-        flexDirection: "column", // As cards verticais precisam de flexDirection 'column'
-        p: 2,
-        mb: 2,
-        borderRadius: 2,
-        boxShadow: 2,
-        transition: "0.3s ease-in-out",
-        height: "100%",
-        "&:hover": {
-          boxShadow: 4,
-          transform: "translateY(-5px)",
-        },
-      }}
-      onClick={() => onClick?.(product)} // Torna o cartão clicável
-    >
+    <Card sx={cardStyles} onClick={() => onClick?.(product)}>
       <CardMedia
         component="img"
-        height="160"
+        height="140" // Reduzimos a altura da imagem
         image={product.image_url}
         alt={product.name}
         sx={{
@@ -154,23 +139,11 @@ export default function ProductCard({
           sx={{
             wordBreak: "break-word",
             overflowWrap: "break-word",
+            fontSize: "1rem", // Ajustamos o tamanho do título
           }}
         >
           {product.name}
         </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{
-            mt: 0.5,
-            wordBreak: "break-word",
-            overflowWrap: "break-word",
-          }}
-        >
-          {shortenDescription(product.description, 100)}{" "}
-          {/* Descrição resumida */}
-        </Typography>
-        <Box></Box>
       </CardContent>
       <Box sx={{ p: 1 }}>
         <Button
@@ -182,6 +155,7 @@ export default function ProductCard({
             "&:hover": {
               boxShadow: 3,
             },
+            fontSize: "0.875rem", // Reduzimos o tamanho da fonte do botão
           }}
           onClick={(e) => {
             e.stopPropagation(); // Evita que o clique no botão "Adicionar" também dispare o clique do cartão

@@ -1,6 +1,6 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import LayoutRestaurante from "@/components/LayoutRestaurant";
 import RestauranteHeader from "@/components/RestaurantHeader";
 import ProductCard from "@/components/ProductCard";
@@ -136,11 +136,21 @@ export default function RestaurantePage() {
   const [restaurantName, setRestaurantName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-
   const [openModal, setOpenModal] = useState(false); // Controle do modal
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null); // Produto selecionado
+  const [cart, setCart] = useState<
+    { product: Product; additionalOptions: Record<string, number> }[]
+  >([]); // Estado para o carrinho
 
-  // Abre o modal
+  // Função para adicionar ao carrinho
+  const handleAddToCart = (
+    product: Product,
+    additionalOptions: Record<string, number>
+  ) => {
+    setCart((prevCart) => [...prevCart, { product, additionalOptions }]);
+  };
+
+  // Função para abrir o modal
   const handleOpenModal = (product: Product) => {
     setSelectedProduct(product); // Define o produto selecionado
     setOpenModal(true); // Abre o modal
@@ -246,6 +256,50 @@ export default function RestaurantePage() {
               mt: { xs: 2, sm: 0 },
             }}
           >
+            <Box
+              sx={{
+                padding: 2,
+              }}
+            >
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: "bold", marginBottom: 2 }}
+              >
+                Mais Vendidos
+              </Typography>
+
+              {/* Container do Carrossel */}
+              <Box
+                sx={{
+                  display: "flex",
+                  overflowX: "auto", // Permite a rolagem horizontal
+                  gap: 2,
+                  paddingBottom: 2,
+                  scrollSnapType: "x mandatory", // Para "encaixar" os itens no final da rolagem
+                  "&::-webkit-scrollbar": { display: "none" }, // Oculta a barra de rolagem
+                  msOverflowStyle: "none",
+                  scrollbarWidth: "none", // Para esconder a barra de rolagem
+                }}
+              >
+                {mockProductsByCategory
+                  .flatMap((cat) => cat.produtos)
+                  .map((product) => (
+                    <Box
+                      key={product.id}
+                      sx={{
+                        flex: "0 0 auto", // Garante que os itens não se expandam e tenham tamanho fixo
+                        width: { xs: "60%", sm: "35%", md: "18%" }, // Ajusta a largura dependendo da tela, menor no mobile
+                      }}
+                    >
+                      <ProductCard
+                        product={product}
+                        variant="vertical" // Usando variant vertical]
+                        onClick={(product) => handleOpenModal(product)} // Passando a função handleOpenModal com o produt
+                      />
+                    </Box>
+                  ))}
+              </Box>
+            </Box>
             {filteredProductsByCategory.map((categoria) => (
               <Box
                 id={categoria.categoria}
@@ -273,9 +327,7 @@ export default function RestaurantePage() {
                         product={product}
                         variant="horizontal"
                         onAddToCart={(product) => {
-                          console.log(
-                            `${product.name} adicionado ao carrinho!`
-                          );
+                          handleAddToCart(product, {}); // Passa as opções adicionais aqui
                         }}
                         onClick={(product) => handleOpenModal(product)} // Passando a função handleOpenModal com o produto
                       />
@@ -293,12 +345,70 @@ export default function RestaurantePage() {
         open={openModal}
         onClose={handleCloseModal}
         product={selectedProduct}
-        onAddToCart={(product, additionalOption) => {
-          console.log(
-            `Produto ${product.name} adicionado com a opção ${additionalOption}`
-          );
-        }}
+        onAddToCart={handleAddToCart} // Passando a função de adicionar ao carrinho
       />
+      {/* Button Carrinho */}
+      {cart.length > 0 && ( // O botão só será exibido quando houver produtos no carrinho
+        <Box
+          sx={{
+            position: "sticky",
+            bottom: 0,
+            width: "100%",
+            padding: 2,
+            zIndex: 2,
+            opacity: 0, // Começa invisível
+            visibility: "hidden", // Começa invisível
+            transition: "opacity 1s ease-in-out, visibility 1s ease-in-out", // Transição suave para opacidade e visibilidade
+            "&.show": {
+              opacity: 1, // Fica visível
+              visibility: "visible", // Torna visível
+            },
+          }}
+          className={cart.length > 0 ? "show" : ""}
+        >
+          <Button
+            onClick={() =>
+              console.log(`Ir para o carrinho ${JSON.stringify(cart)}`)
+            }
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: "primary.main",
+              color: "white",
+              "&:hover": {
+                backgroundColor: "primary.dark",
+              },
+              fontSize: "1rem",
+              fontWeight: "bold",
+              width: "100%",
+              padding: "8px 16px",
+            }}
+          >
+            Ir para o carrinho
+            {/* Box para o valor total */}
+            <Box
+              sx={{
+                color: "primary.main",
+                backgroundColor: "white",
+                borderRadius: "4px",
+                padding: "2px 8px",
+                fontWeight: "bold",
+              }}
+            >
+              {/* Calcular o total apenas com os preços dos produtos */}
+              R$ {""}
+              {cart
+                .reduce(
+                  (total, item) => total + item.product.price, // Somando apenas o preço do produto
+                  0
+                )
+                .toFixed(2)}{" "}
+              {/* Exibe o total */}
+            </Box>
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 }

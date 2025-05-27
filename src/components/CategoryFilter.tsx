@@ -25,10 +25,14 @@ export default function CategoryFilter({
 }: CategoryFilterProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSticky, setIsSticky] = useState(false);
+  const [isClient, setIsClient] = useState(false); // Para garantir que o código será executado apenas no cliente
   const filterRef = useRef<HTMLDivElement>(null);
   const filterHeight = useRef<number>(0);
 
+  // Efetua a atualização apenas no cliente
   useEffect(() => {
+    setIsClient(true); // Garante que ReactSelect só será usado no cliente
+
     const handleScroll = () => {
       const filterElement = filterRef.current;
       if (!filterElement) return;
@@ -161,45 +165,47 @@ export default function CategoryFilter({
             </Button>
           </Box>
 
-          {/* Desktop - React Select para categorias */}
-          <Box sx={{ display: { xs: "none", sm: "block" }, width: "300px" }}>
-            <FormControl fullWidth>
-              {/* Label customizado acima */}
-              <ReactSelect
-                options={options}
-                value={selectedOption}
-                onChange={(option) =>
-                  onSelectCategory(option ? option.value : "")
-                }
-                styles={{
-                  control: (base) => ({
-                    ...base,
-                    borderRadius: 12,
-                    boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
-                    borderColor: selectedCategory ? "#1976d2" : "#bdbdbd",
-                    padding: "2px",
-                    "&:hover": {
-                      borderColor: "#115293",
-                    },
-                    minHeight: "20px",
-                    minWidth: "300px",
-                  }),
-                  menu: (base) => ({
-                    ...base,
-                    borderRadius: 12,
-                  }),
-                  option: (base, state) => ({
-                    ...base,
-                    backgroundColor: state.isFocused ? "#1976d2" : "white",
-                    color: state.isFocused ? "white" : "black",
-                    cursor: "pointer",
-                  }),
-                }}
-                isSearchable={false}
-                placeholder="Selecione uma categoria"
-              />
-            </FormControl>
-          </Box>
+          {/* Desktop - React Select para categorias, apenas se for no cliente */}
+          {isClient && (
+            <Box sx={{ display: { xs: "none", sm: "block" }, width: "300px" }}>
+              <FormControl fullWidth>
+                {/* Label customizado acima */}
+                <ReactSelect
+                  options={options}
+                  value={selectedOption}
+                  onChange={(option) =>
+                    onSelectCategory(option ? option.value : "")
+                  }
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      borderRadius: 12,
+                      boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
+                      borderColor: selectedCategory ? "#1976d2" : "#bdbdbd",
+                      padding: "2px",
+                      "&:hover": {
+                        borderColor: "#115293",
+                      },
+                      minHeight: "20px",
+                      minWidth: "300px",
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      borderRadius: 12,
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isFocused ? "#1976d2" : "white",
+                      color: state.isFocused ? "white" : "black",
+                      cursor: "pointer",
+                    }),
+                  }}
+                  isSearchable={false}
+                  placeholder="Selecione uma categoria"
+                />
+              </FormControl>
+            </Box>
+          )}
 
           {/* Campo de busca */}
           <TextField

@@ -84,7 +84,7 @@ export default function CategoryFilter({
         sx={{
           position: isSticky ? "fixed" : "relative",
           top: 0,
-          zIndex: 1100,
+          zIndex: 2,
           backgroundColor: "primary.main",
           borderRadius: isSticky ? "0 0 8px 8px" : "8px", // Apenas bordas inferiores arredondadas quando fixo
           mb: 2,

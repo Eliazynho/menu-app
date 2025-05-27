@@ -6,8 +6,8 @@ import RestauranteHeader from "@/components/RestaurantHeader";
 import ProductCard from "@/components/ProductCard";
 import CategoryFilter from "@/components/CategoryFilter";
 import ProductModal from "@/components/ProductModal";
+import Sidebar from "@/components/Sidebar";
 import { Product } from "@/types";
-import Image from "next/image";
 
 const mockProductsByCategory = [
   {
@@ -217,12 +217,9 @@ export default function RestaurantePage() {
           left: 0, // Você pode ajustar a posição conforme necessário
         }}
       >
-        <Image
-          src="/menu.svg" // Caminho correto para a imagem no diretório public
-          alt="Imagem de fundo"
-          width={50} // Defina a largura desejada
-          height={50} // Defina a altura desejada
-          layout="intrinsic" // Isso permite que a imagem tenha seu tamanho ajustado de acordo com a largura e altura
+        <Sidebar
+          logo="https://static.ifood-static.com.br/image/upload/t_high/logosgde/c7e768e6-75ae-480d-95dc-c276672066ac/202406242002_DSVk_.jpeg"
+          nome={restaurantName || "Carregando..."}
         />
       </Box>
       <RestauranteHeader

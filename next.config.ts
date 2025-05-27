@@ -3,7 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ["example.com", "images.tcdn.com.br"], // Adicione aqui os domínios permitidos
+    domains: [
+      "example.com",
+      "images.tcdn.com.br",
+      "static.ifood-static.com.br",
+      "static.vecteezy.com",
+    ], // Adicione o domínio específico aqui
   },
 };
 

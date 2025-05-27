@@ -39,9 +39,9 @@ export default function ProductCard({
 
   const cardStyles = {
     display: "flex",
-    flexDirection: variant === "vertical" ? "column" : "row", // Flex direção conforme o variant
-    p: 1, // Reduzimos o padding para tornar o card mais compacto
-    mb: 1, // Reduzimos a margem para ajustar o espaçamento
+    flexDirection: variant === "vertical" ? "column" : "row",
+    p: 1,
+    mb: 1,
     borderRadius: 2,
     boxShadow: 2,
     transition: "0.3s ease-in-out",
@@ -49,7 +49,7 @@ export default function ProductCard({
       boxShadow: 4,
       transform: "translateY(-5px)",
     },
-    height: variant === "vertical" ? 300 : "auto", // Menor altura no vertical
+    height: variant === "vertical" ? 300 : "auto",
   };
 
   // Layout Horizontal
@@ -108,7 +108,7 @@ export default function ProductCard({
             size="large"
             sx={{ mt: 2 }}
             onClick={(e) => {
-              e.stopPropagation(); // Evita que o clique no botão "Adicionar" também dispare o clique do cartão
+              e.stopPropagation();
               onAddToCart?.(product);
             }}
           >
@@ -124,7 +124,7 @@ export default function ProductCard({
     <Card sx={cardStyles} onClick={() => onClick?.(product)}>
       <CardMedia
         component="img"
-        height="140" // Reduzimos a altura da imagem
+        height="140"
         image={product.image_url}
         alt={product.name}
         sx={{
@@ -139,7 +139,7 @@ export default function ProductCard({
           sx={{
             wordBreak: "break-word",
             overflowWrap: "break-word",
-            fontSize: "1rem", // Ajustamos o tamanho do título
+            fontSize: "1rem",
           }}
         >
           {product.name}
@@ -155,10 +155,10 @@ export default function ProductCard({
             "&:hover": {
               boxShadow: 3,
             },
-            fontSize: "0.875rem", // Reduzimos o tamanho da fonte do botão
+            fontSize: "0.875rem",
           }}
           onClick={(e) => {
-            e.stopPropagation(); // Evita que o clique no botão "Adicionar" também dispare o clique do cartão
+            e.stopPropagation();
             onAddToCart?.(product);
           }}
         >

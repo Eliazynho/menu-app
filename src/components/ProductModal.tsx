@@ -217,6 +217,7 @@ const ProductModal = ({
             width: "100%",
             backgroundColor: "white",
             padding: 2,
+            zIndex: 2,
           }}
         >
           <Button

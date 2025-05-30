@@ -4,5 +4,7 @@ export interface Product {
   description: string;
   price: number;
   image_url: string;
-  additionalOptions?: string[]; // Lista de opções adicionais para o produto
+  price_from?: boolean;
+  components?: string[];
+  additionalOptions?: string[];
 }

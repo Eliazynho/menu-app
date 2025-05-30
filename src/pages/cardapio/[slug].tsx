@@ -8,6 +8,7 @@ import CategoryFilter from "@/components/CategoryFilter";
 import ProductModal from "@/components/ProductModal";
 import Sidebar from "@/components/Sidebar";
 import { Product } from "@/types";
+import CartBar from "@/components/CartBar";
 
 const mockProductsByCategory = [
   {
@@ -22,6 +23,7 @@ const mockProductsByCategory = [
         image_url:
           "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsz6s7eTffKTOsh_JMgHK0TPAgZvkVGD9CdQ&s", // Imagem do produto
         price_from: false,
+        components: ["1x Majestoso Burger", "1x Fritas"],
         additionalOptions: ["Queijo extra", "Batata extra", "Molho especial"], // Opções adicionais para o produto
       },
       {
@@ -30,8 +32,11 @@ const mockProductsByCategory = [
         description:
           "Blend defumado, queijo prato, bacon, batata canoa e onions.",
         price: 39.9,
-        image_url: "https://example.com/image2.jpg", // Imagem do produto
+        image_url:
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsz6s7eTffKTOsh_JMgHK0TPAgZvkVGD9CdQ&s", // Imagem do produto
         price_from: true,
+        components: ["1x Majestoso Burger", "1x Fritas"],
+
         additionalOptions: [
           "Queijo extra",
           "Cebola caramelizada",
@@ -44,8 +49,11 @@ const mockProductsByCategory = [
         description:
           "180g defumado, cheddar, bacon, cebola caramelizada e batata.",
         price: 40.9,
-        image_url: "https://example.com/image3.jpg", // Imagem do produto
+        image_url:
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsz6s7eTffKTOsh_JMgHK0TPAgZvkVGD9CdQ&s", // Imagem do produto
         price_from: false,
+        components: ["1x Majestoso Burger", "1x Fritas"],
+
         additionalOptions: ["Queijo cheddar", "Molho picante"], // Opções adicionais para o produto
       },
       {
@@ -54,7 +62,8 @@ const mockProductsByCategory = [
         description: "Defumado + provolone + jalapeño + batata canoa.",
         price: 41.9,
         price_from: true,
-        image_url: "https://example.com/image4.jpg", // Imagem do produto
+        image_url:
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsz6s7eTffKTOsh_JMgHK0TPAgZvkVGD9CdQ&s", // Imagem do produto
         additionalOptions: ["Molho extra", "Batata canoa"], // Opções adicionais para o produto
       },
     ],
@@ -142,6 +151,12 @@ export default function RestaurantePage() {
     { product: Product; additionalOptions: Record<string, number> }[]
   >([]); // Estado para o carrinho
 
+  const [cartOpen, setCartOpen] = useState(false);
+
+  const toggleCartBar = () => {
+    setCartOpen((prev) => !prev);
+  };
+
   // Função para adicionar ao carrinho
   const handleAddToCart = (
     product: Product,
@@ -220,6 +235,12 @@ export default function RestaurantePage() {
         <Sidebar
           logo="https://static.ifood-static.com.br/image/upload/t_high/logosgde/c7e768e6-75ae-480d-95dc-c276672066ac/202406242002_DSVk_.jpeg"
           nome={restaurantName || "Carregando..."}
+        />
+        <CartBar
+          open={cartOpen}
+          onToggle={toggleCartBar}
+          userName="alo"
+          cartItems={cart} // Passando todos os itens do carrinho
         />
       </Box>
       <RestauranteHeader
@@ -364,9 +385,7 @@ export default function RestaurantePage() {
           className={cart.length > 0 ? "show" : ""}
         >
           <Button
-            onClick={() =>
-              console.log(`Ir para o carrinho ${JSON.stringify(cart)}`)
-            }
+            onClick={toggleCartBar}
             sx={{
               display: "flex",
               alignItems: "center",

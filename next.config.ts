@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
       "images.tcdn.com.br",
       "static.ifood-static.com.br",
       "static.vecteezy.com",
+      "encrypted-tbn0.gstatic.com",
     ], // Adicione o domínio específico aqui
   },
 };

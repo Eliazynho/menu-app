@@ -8,3 +8,17 @@ export interface Product {
   components?: string[];
   additionalOptions?: string[];
 }
+
+export interface Restaurant {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  created_at?: string;
+  color: string;
+  minimum_order_value: number;
+  delivery_time: string;
+  opening_hours: string;
+  logo_url?: string; // Link da logo (opcional)
+  background_url?: string; // Link da imagem de fundo (opcional)
+}

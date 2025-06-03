@@ -22,6 +22,7 @@ interface Props {
   onAddToCart?: (product: Product) => void;
   variant?: "vertical" | "horizontal";
   onClick?: (product: Product) => void;
+  color?: string;
 }
 
 export default function ProductCard({
@@ -29,6 +30,7 @@ export default function ProductCard({
   onAddToCart,
   onClick,
   variant = "vertical",
+  color,
 }: Props) {
   const shortenDescription = (description: string, maxLength: number) => {
     if (description.length > maxLength) {
@@ -150,6 +152,7 @@ export default function ProductCard({
           fullWidth
           variant="contained"
           sx={{
+            backgroundColor: color,
             borderRadius: 2,
             boxShadow: 2,
             "&:hover": {

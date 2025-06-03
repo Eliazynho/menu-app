@@ -5,16 +5,18 @@ interface Props {
   imagemFundo?: string;
   logo?: string;
   tempo?: string;
-  minimo?: string;
+  minimo?: number;
   status?: string;
+  color?: string;
 }
 
 export default function RestauranteHeader({
   nome,
   imagemFundo,
   logo,
-  tempo = "40–60 min",
-  minimo = "R$ 15,00",
+  tempo,
+  minimo,
+  color,
   status = "Aberto",
 }: Props) {
   const isOpen = status.toLowerCase() === "aberto"; // Verifica se status é "aberto" (case insensitive)
@@ -83,8 +85,8 @@ export default function RestauranteHeader({
               mt: 1,
             }}
           >
-            <span>{tempo}</span>
-            <span>Pedido mínimo: {minimo}</span>
+            <span>{`Tempo de entrega: ${tempo}`}</span>
+            <span>Pedido mínimo: {`R$ ${minimo},00`}</span>
             <span style={{ color: isOpen ? "green" : "red" }}>● {status}</span>
           </Box>
         </Box>
@@ -114,7 +116,7 @@ export default function RestauranteHeader({
             height: 120,
             mr: 2, // Espaço à direita do avatar
             border: "4px solid",
-            borderColor: "primary.main",
+            borderColor: `${color}`,
           }}
         />
 
@@ -140,7 +142,7 @@ export default function RestauranteHeader({
                 gap: 1, // espaço entre os itens
               }}
             >
-              <span>Min: {minimo}</span>
+              <span>Min: {`R$ ${minimo},00`}</span>
 
               <Box
                 sx={{
@@ -150,7 +152,7 @@ export default function RestauranteHeader({
                 }}
               />
 
-              <span>{tempo}</span>
+              <span>{`${tempo} min`}</span>
             </Box>
 
             <Button

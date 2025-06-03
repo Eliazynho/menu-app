@@ -2,11 +2,13 @@
 import { Button, Box, Typography, TextField } from "@mui/material";
 import { Product } from "@/types"; // Tipo do produto, defina isso conforme sua estrutura
 import { useState } from "react";
+import { darken } from "@mui/system";
 
 interface ProductModalProps {
   open: boolean;
   onClose: () => void;
   product: Product | null;
+  color: string;
   onAddToCart: (
     product: Product,
     additionalOptions: Record<string, number>
@@ -18,6 +20,7 @@ const ProductModal = ({
   onClose,
   product,
   onAddToCart,
+  color,
 }: ProductModalProps) => {
   const [selectedOptions, setSelectedOptions] = useState<
     Record<string, number>
@@ -79,7 +82,7 @@ const ProductModal = ({
             left: "30px", // Centraliza horizontalmente
             transform: "translateX(-50%)", // Ajuste para centralização precisa
             zIndex: 3, // Garantir que o botão de fechamento fique acima de tudo
-            backgroundColor: "primary.main",
+            backgroundColor: `${color}`,
             width: "40px",
             height: "40px",
             display: "flex",
@@ -129,7 +132,7 @@ const ProductModal = ({
             sx={{
               fontWeight: "bold",
               textAlign: "center",
-              backgroundColor: "primary.main",
+              backgroundColor: `${color}`,
               color: "white",
               padding: 1,
               width: "100%",
@@ -148,7 +151,7 @@ const ProductModal = ({
             variant="h6"
             sx={{
               marginBottom: 1,
-              backgroundColor: "primary.main",
+              backgroundColor: `${color}`,
               width: "100%",
               color: "white",
               padding: 1,
@@ -176,8 +179,11 @@ const ProductModal = ({
               >
                 <Button
                   variant="contained"
-                  color="primary"
                   onClick={() => handleChangeQuantity(option, "add")}
+                  style={{
+                    backgroundColor: `${color}`,
+                    color: "white",
+                  }}
                 >
                   +1
                 </Button>
@@ -223,10 +229,10 @@ const ProductModal = ({
           <Button
             onClick={handleAddToCart}
             sx={{
-              backgroundColor: "primary.main",
+              backgroundColor: `${color}`,
               color: "white",
               "&:hover": {
-                backgroundColor: "primary.dark",
+                backgroundColor: darken(color, 0.5),
               },
               fontSize: "1rem",
               fontWeight: "bold",

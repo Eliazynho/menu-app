@@ -1,14 +1,31 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography, Button, CircularProgress } from "@mui/material";
 import LayoutRestaurante from "@/components/LayoutRestaurant";
 import RestauranteHeader from "@/components/RestaurantHeader";
 import ProductCard from "@/components/ProductCard";
 import CategoryFilter from "@/components/CategoryFilter";
 import ProductModal from "@/components/ProductModal";
 import Sidebar from "@/components/Sidebar";
-import { Product } from "@/types";
+import { Product, Restaurant } from "@/types";
 import CartBar from "@/components/CartBar";
+
+import { getRestaurantBySlug } from "@/pages/api/restaurants";
+
+const precoAdicionais: Record<string, number> = {
+  "Queijo extra": 3.0,
+  "Batata extra": 4.0,
+  "Molho especial": 2.5,
+  "Cebola caramelizada": 2.0,
+  "Molho barbecue": 2.0,
+  "Queijo cheddar": 3.0,
+  "Molho picante": 2.5,
+  "Molho extra": 2.0,
+  "Batata canoa": 4.0,
+  Bacon: 4.5,
+  "Queijo brie extra": 5.0,
+  // Adicione mais conforme necessidade
+};
 
 const mockProductsByCategory = [
   {
@@ -133,6 +150,12 @@ const mockProductsByCategory = [
   },
 ];
 
+interface CartItem {
+  product: Product;
+  additionalOptions: Record<string, number>;
+  quantity: number;
+}
+
 function easeInOutQuad(t: number, b: number, c: number, d: number) {
   let x = t / (d / 2);
   if (x < 1) return (c / 2) * x * x + b;
@@ -143,44 +166,117 @@ function easeInOutQuad(t: number, b: number, c: number, d: number) {
 export default function RestaurantePage() {
   const { query } = useRouter();
   const [restaurantName, setRestaurantName] = useState("");
+  const [restaurantData, setRestaurantData] = useState<Restaurant | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [openModal, setOpenModal] = useState(false); // Controle do modal
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null); // Produto selecionado
-  const [cart, setCart] = useState<
-    { product: Product; additionalOptions: Record<string, number> }[]
-  >([]); // Estado para o carrinho
-
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const isOpen = restaurantData?.opening_hours
+    ? isRestaurantOpen(restaurantData.opening_hours)
+    : false;
+
+  const [loading, setLoading] = useState<boolean>(true); // Estado de carregamento
+  const [fetchError, setFetchError] = useState<string | null>(null); // Renomeado para fetchError
+
+  function isRestaurantOpen(openingHours: string): boolean {
+    const [opening, closing] = openingHours.split("-");
+    const [openingHour, openingMinute] = opening.split(":").map(Number);
+    const [closingHour, closingMinute] = closing.split(":").map(Number);
+
+    const now = new Date();
+
+    // Definindo a hora de abertura e fechamento com os minutos
+    const openTime = new Date(now.setHours(openingHour, openingMinute, 0, 0));
+    const closeTime = new Date(now.setHours(closingHour, closingMinute, 0, 0));
+
+    // Comparando diretamente a hora atual com os horários de abertura e fechamento
+    return now >= openTime && now <= closeTime;
+  }
 
   const toggleCartBar = () => {
     setCartOpen((prev) => !prev);
   };
 
-  // Função para adicionar ao carrinho
+  // Função para adicionar ao carrinho, agora com adicionais e quantidade inicial 1
   const handleAddToCart = (
     product: Product,
     additionalOptions: Record<string, number>
   ) => {
-    setCart((prevCart) => [...prevCart, { product, additionalOptions }]);
+    setCart((prevCart) => {
+      const existingIndex = prevCart.findIndex(
+        (item) =>
+          item.product.id === product.id &&
+          JSON.stringify(item.additionalOptions) ===
+            JSON.stringify(additionalOptions)
+      );
+
+      if (existingIndex !== -1) {
+        const newCart = [...prevCart];
+        newCart[existingIndex].quantity += 1;
+        return newCart;
+      }
+
+      return [...prevCart, { product, additionalOptions, quantity: 1 }];
+    });
   };
 
-  // Função para abrir o modal
+  // Calcula o preço total considerando produto + adicionais e quantidade
+  const calcularPrecoItem = (item: CartItem) => {
+    const precoProduto = item.product.price;
+    const precoAdicionaisSomados = Object.entries(
+      item.additionalOptions
+    ).reduce((acc, [nomeOpcao, quantidade]) => {
+      const precoOpcao = precoAdicionais[nomeOpcao] || 0;
+      return acc + precoOpcao * quantidade;
+    }, 0);
+    return (precoProduto + precoAdicionaisSomados) * item.quantity;
+  };
+
+  // Calcula total do carrinho somando todos os itens com adicionais
+  const totalCarrinho = cart.reduce(
+    (acc, item) => acc + calcularPrecoItem(item),
+    0
+  );
+
   const handleOpenModal = (product: Product) => {
-    setSelectedProduct(product); // Define o produto selecionado
-    setOpenModal(true); // Abre o modal
+    setSelectedProduct(product);
+    setOpenModal(true);
   };
 
-  // Fecha o modal
   const handleCloseModal = () => {
-    setOpenModal(false); // Fecha o modal
-    setSelectedProduct(null); // Limpa o produto selecionado
+    setOpenModal(false);
+    setSelectedProduct(null);
   };
 
   useEffect(() => {
-    if (query.slug) {
-      setRestaurantName(String(query.slug).replace("-", " ").toUpperCase());
+    async function fetchRestaurant() {
+      if (query.slug) {
+        try {
+          setLoading(true); // Começar o loading
+
+          const data = await getRestaurantBySlug(query.slug as string);
+          setLoading(false); // Finalizar o loading
+          if (data) {
+            setRestaurantData(data);
+            setRestaurantName(
+              data.name || String(query.slug).replace("-", " ").toUpperCase()
+            );
+          } else {
+            setRestaurantName(
+              String(query.slug).replace("-", " ").toUpperCase()
+            );
+          }
+        } catch (err) {
+          setFetchError("Erro ao carregar restaurante"); // Renomeado para fetchError
+          console.error(err);
+          setRestaurantName(String(query.slug).replace("-", " ").toUpperCase());
+          setLoading(false);
+        }
+      }
     }
+    fetchRestaurant();
   }, [query.slug]);
 
   const filteredProductsByCategory = mockProductsByCategory.map((cat) => ({
@@ -190,33 +286,59 @@ export default function RestaurantePage() {
     ),
   }));
 
-  // Função para rolar até a categoria com navegação suave
   const smoothScrollToCategory = (categoria: string) => {
     const targetElement = document.getElementById(categoria);
-
     if (!targetElement) return;
-
     const startPosition = window.pageYOffset;
     const targetPosition = targetElement.offsetTop;
     const distance = targetPosition - startPosition;
     const duration = 800;
-    let startTime: number = 0;
-
+    let startTime = 0;
     const animation = (currentTime: number) => {
       if (startTime === 0) startTime = currentTime;
-
       const progress = currentTime - startTime;
       const scroll = easeInOutQuad(progress, startPosition, distance, duration);
-
       window.scrollTo(0, scroll);
-
       if (progress < duration) {
         requestAnimationFrame(animation);
       }
     };
-
     requestAnimationFrame(animation);
   };
+
+  // Se estiver carregando, exibe o spinner
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <CircularProgress /> {/* Spinner de carregamento */}
+      </Box>
+    );
+  }
+
+  // Se houve um erro ao buscar os dados
+  if (fetchError) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <Typography variant="h6" color="error">
+          {fetchError}
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -228,8 +350,8 @@ export default function RestaurantePage() {
           width: "100%",
           overflow: "hidden",
           padding: 2,
-          top: 0, // Você pode ajustar a posição conforme necessário
-          left: 0, // Você pode ajustar a posição conforme necessário
+          top: 0,
+          left: 0,
         }}
       >
         <Sidebar
@@ -240,13 +362,19 @@ export default function RestaurantePage() {
           open={cartOpen}
           onToggle={toggleCartBar}
           userName="alo"
-          cartItems={cart} // Passando todos os itens do carrinho
+          cartItems={cart}
+          setCartItems={setCart}
+          color={restaurantData?.color || "#1976d2"}
         />
       </Box>
       <RestauranteHeader
         nome={restaurantName || "Carregando..."}
-        imagemFundo="https://images.dailyhive.com/20190920101433/burg1.jpeg"
-        logo="https://static.ifood-static.com.br/image/upload/t_high/logosgde/c7e768e6-75ae-480d-95dc-c276672066ac/202406242002_DSVk_.jpeg"
+        imagemFundo={restaurantData?.background_url}
+        logo={restaurantData?.logo_url}
+        tempo={restaurantData?.delivery_time}
+        minimo={restaurantData?.minimum_order_value}
+        status={isOpen ? "Aberto" : "Fechado"}
+        color={restaurantData?.color}
       />
 
       <Box
@@ -265,38 +393,27 @@ export default function RestaurantePage() {
             selectedCategory={selectedCategory}
             onSelectCategory={(category) => {
               setSelectedCategory(category);
-              smoothScrollToCategory(category); // Chama o scroll suave
+              smoothScrollToCategory(category);
             }}
             onSearch={setSearchTerm}
+            color={restaurantData?.color || "#1976d2"}
           />
-          <Box
-            sx={{
-              mt: { xs: 2, sm: 0 },
-            }}
-          >
-            <Box
-              sx={{
-                padding: 2,
-              }}
-            >
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: "bold", marginBottom: 2 }}
-              >
+          <Box sx={{ mt: { xs: 2, sm: 0 } }}>
+            <Box sx={{ padding: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
                 Mais Vendidos
               </Typography>
 
-              {/* Container do Carrossel */}
               <Box
                 sx={{
                   display: "flex",
-                  overflowX: "auto", // Permite a rolagem horizontal
+                  overflowX: "auto",
                   gap: 2,
                   paddingBottom: 2,
-                  scrollSnapType: "x mandatory", // Para "encaixar" os itens no final da rolagem
-                  "&::-webkit-scrollbar": { display: "none" }, // Oculta a barra de rolagem
+                  scrollSnapType: "x mandatory",
+                  "&::-webkit-scrollbar": { display: "none" },
                   msOverflowStyle: "none",
-                  scrollbarWidth: "none", // Para esconder a barra de rolagem
+                  scrollbarWidth: "none",
                 }}
               >
                 {mockProductsByCategory
@@ -305,14 +422,15 @@ export default function RestaurantePage() {
                     <Box
                       key={product.id}
                       sx={{
-                        flex: "0 0 auto", // Garante que os itens não se expandam e tenham tamanho fixo
-                        width: { xs: "60%", sm: "35%", md: "18%" }, // Ajusta a largura dependendo da tela, menor no mobile
+                        flex: "0 0 auto",
+                        width: { xs: "60%", sm: "35%", md: "18%" },
                       }}
                     >
                       <ProductCard
                         product={product}
-                        variant="vertical" // Usando variant vertical]
-                        onClick={(product) => handleOpenModal(product)} // Passando a função handleOpenModal com o produt
+                        variant="vertical"
+                        onClick={(product) => handleOpenModal(product)}
+                        color={restaurantData?.color || "#1976d2"}
                       />
                     </Box>
                   ))}
@@ -345,9 +463,9 @@ export default function RestaurantePage() {
                         product={product}
                         variant="horizontal"
                         onAddToCart={(product) => {
-                          handleAddToCart(product, {}); // Passa as opções adicionais aqui
+                          handleAddToCart(product, {}); // Passa adicionais vazios por padrão
                         }}
-                        onClick={(product) => handleOpenModal(product)} // Passando a função handleOpenModal com o produto
+                        onClick={(product) => handleOpenModal(product)}
                       />
                     </Box>
                   ))}
@@ -358,15 +476,15 @@ export default function RestaurantePage() {
         </LayoutRestaurante>
       </Box>
 
-      {/* Modal do Produto */}
       <ProductModal
         open={openModal}
         onClose={handleCloseModal}
         product={selectedProduct}
-        onAddToCart={handleAddToCart} // Passando a função de adicionar ao carrinho
+        onAddToCart={handleAddToCart}
+        color={restaurantData?.color || "#1976d2"}
       />
-      {/* Button Carrinho */}
-      {cart.length > 0 && ( // O botão só será exibido quando houver produtos no carrinho
+
+      {cart.length > 0 && (
         <Box
           sx={{
             position: "sticky",
@@ -374,12 +492,12 @@ export default function RestaurantePage() {
             width: "100%",
             padding: 2,
             zIndex: 2,
-            opacity: 0, // Começa invisível
-            visibility: "hidden", // Começa invisível
-            transition: "opacity 1s ease-in-out, visibility 1s ease-in-out", // Transição suave para opacidade e visibilidade
+            opacity: 0,
+            visibility: "hidden",
+            transition: "opacity 1s ease-in-out, visibility 1s ease-in-out",
             "&.show": {
-              opacity: 1, // Fica visível
-              visibility: "visible", // Torna visível
+              opacity: 1,
+              visibility: "visible",
             },
           }}
           className={cart.length > 0 ? "show" : ""}
@@ -390,10 +508,10 @@ export default function RestaurantePage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              backgroundColor: "primary.main",
+              backgroundColor: `${restaurantData?.color}`,
               color: "white",
               "&:hover": {
-                backgroundColor: "primary.dark",
+                backgroundColor: `${restaurantData?.color}`,
               },
               fontSize: "1rem",
               fontWeight: "bold",
@@ -402,25 +520,16 @@ export default function RestaurantePage() {
             }}
           >
             Ir para o carrinho
-            {/* Box para o valor total */}
             <Box
               sx={{
-                color: "primary.main",
+                color: `${restaurantData?.color}`,
                 backgroundColor: "white",
                 borderRadius: "4px",
                 padding: "2px 8px",
                 fontWeight: "bold",
               }}
             >
-              {/* Calcular o total apenas com os preços dos produtos */}
-              R$ {""}
-              {cart
-                .reduce(
-                  (total, item) => total + item.product.price, // Somando apenas o preço do produto
-                  0
-                )
-                .toFixed(2)}{" "}
-              {/* Exibe o total */}
+              R$ {totalCarrinho.toFixed(2)}
             </Box>
           </Button>
         </Box>

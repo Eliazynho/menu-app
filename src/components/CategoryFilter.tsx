@@ -6,6 +6,7 @@ import {
   Stack,
   FormControl,
   InputAdornment,
+  darken,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ReactSelect from "react-select"; // Import React Select
@@ -15,6 +16,7 @@ interface CategoryFilterProps {
   selectedCategory: string;
   onSelectCategory: (category: string) => void;
   onSearch: (term: string) => void;
+  color: string;
 }
 
 export default function CategoryFilter({
@@ -22,6 +24,7 @@ export default function CategoryFilter({
   selectedCategory,
   onSelectCategory,
   onSearch,
+  color,
 }: CategoryFilterProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSticky, setIsSticky] = useState(false);
@@ -85,7 +88,7 @@ export default function CategoryFilter({
           position: isSticky ? "fixed" : "relative",
           top: 0,
           zIndex: 2,
-          backgroundColor: "primary.main",
+          backgroundColor: `${color}`,
           borderRadius: isSticky ? "0 0 8px 8px" : "8px", // Apenas bordas inferiores arredondadas quando fixo
           mb: 2,
           borderBottom: "1px solid #ddd",
@@ -116,7 +119,7 @@ export default function CategoryFilter({
               "&::-webkit-scrollbar": { display: "none" },
               msOverflowStyle: "none",
               scrollbarWidth: "none",
-              backgroundColor: "primary.dark",
+              backgroundColor: darken(color, 0.7),
               padding: 1,
               borderRadius: "12px",
             }}
@@ -129,7 +132,7 @@ export default function CategoryFilter({
                 sx={{
                   display: "inline-block",
                   fontWeight: 600,
-                  color: selectedCategory === cat ? "white" : "text.primary",
+                  color: selectedCategory === cat ? `${color}` : "white",
                   padding: "4px 8px",
                   borderBottom:
                     selectedCategory === cat

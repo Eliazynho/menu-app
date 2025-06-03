@@ -225,7 +225,7 @@ function CartBar({
                       color="text.secondary"
                       sx={{ whiteSpace: "pre-line" }}
                     >
-                      {item.product.components?.join("\n") || ""}
+                      {/* {item.product.components?.join("\n") || ""} */}
                     </Typography>
                   </Box>
                 </Box>

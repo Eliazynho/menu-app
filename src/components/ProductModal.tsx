@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 import { Button, Box, Typography, TextField } from "@mui/material";
 import { Product } from "@/types"; // Tipo do produto, defina isso conforme sua estrutura
@@ -26,14 +27,14 @@ const ProductModal = ({
     Record<string, number>
   >({});
 
-  const handleChangeQuantity = (option: string, action: "add" | "remove") => {
-    setSelectedOptions((prevState) => {
-      const currentCount = prevState[option] || 0;
-      const newCount =
-        action === "add" ? currentCount + 1 : Math.max(currentCount - 1, 0);
-      return { ...prevState, [option]: newCount };
-    });
-  };
+  // const handleChangeQuantity = (option: string, action: "add" | "remove") => {
+  //   setSelectedOptions((prevState) => {
+  //     const currentCount = prevState[option] || 0;
+  //     const newCount =
+  //       action === "add" ? currentCount + 1 : Math.max(currentCount - 1, 0);
+  //     return { ...prevState, [option]: newCount };
+  //   });
+  // };
 
   const handleAddToCart = () => {
     if (product) {
@@ -160,7 +161,7 @@ const ProductModal = ({
           >
             Adicionais:
           </Typography>
-          {product.additionalOptions?.map((option, index) => (
+          {/* {product.additionalOptions?.map((option, index) => (
             <Box
               key={index}
               sx={{
@@ -200,7 +201,7 @@ const ProductModal = ({
                 </Button>
               </Box>
             </Box>
-          ))}
+          ))} */}
         </Box>
 
         {/* Campo de observações */}

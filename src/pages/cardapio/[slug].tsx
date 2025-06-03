@@ -7,9 +7,9 @@ import ProductCard from "@/components/ProductCard";
 import CategoryFilter from "@/components/CategoryFilter";
 import ProductModal from "@/components/ProductModal";
 import Sidebar from "@/components/Sidebar";
-import { Product, Restaurant } from "@/types";
+import { Restaurant, Product, ProductByCategory } from "@/types";
 import CartBar from "@/components/CartBar";
-
+import { getProducts } from "@/pages/api/products"; // Alteração para pegar os produtos
 import { getRestaurantBySlug } from "@/pages/api/restaurants";
 
 const precoAdicionais: Record<string, number> = {
@@ -26,129 +26,6 @@ const precoAdicionais: Record<string, number> = {
   "Queijo brie extra": 5.0,
   // Adicione mais conforme necessidade
 };
-
-const mockProductsByCategory = [
-  {
-    categoria: "Burgers",
-    produtos: [
-      {
-        id: "1",
-        name: "Majestoso Burger + fritas",
-        description:
-          "Blend de 180 gramas defumado na lenha frutífera, queijo camembert, crispy de presunto de Parma, geleia de damasco no pão de brioche e molho baconese.",
-        price: 47.9,
-        image_url:
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsz6s7eTffKTOsh_JMgHK0TPAgZvkVGD9CdQ&s", // Imagem do produto
-        price_from: false,
-        components: ["1x Majestoso Burger", "1x Fritas"],
-        additionalOptions: ["Queijo extra", "Batata extra", "Molho especial"], // Opções adicionais para o produto
-      },
-      {
-        id: "2",
-        name: "Plebeu Burger + fritas",
-        description:
-          "Blend defumado, queijo prato, bacon, batata canoa e onions.",
-        price: 39.9,
-        image_url:
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsz6s7eTffKTOsh_JMgHK0TPAgZvkVGD9CdQ&s", // Imagem do produto
-        price_from: true,
-        components: ["1x Majestoso Burger", "1x Fritas"],
-
-        additionalOptions: [
-          "Queijo extra",
-          "Cebola caramelizada",
-          "Molho barbecue",
-        ], // Opções adicionais para o produto
-      },
-      {
-        id: "3",
-        name: "Barão Burger + fritas",
-        description:
-          "180g defumado, cheddar, bacon, cebola caramelizada e batata.",
-        price: 40.9,
-        image_url:
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsz6s7eTffKTOsh_JMgHK0TPAgZvkVGD9CdQ&s", // Imagem do produto
-        price_from: false,
-        components: ["1x Majestoso Burger", "1x Fritas"],
-
-        additionalOptions: ["Queijo cheddar", "Molho picante"], // Opções adicionais para o produto
-      },
-      {
-        id: "4",
-        name: "Cavaleiro Burger + Fritas",
-        description: "Defumado + provolone + jalapeño + batata canoa.",
-        price: 41.9,
-        price_from: true,
-        image_url:
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsz6s7eTffKTOsh_JMgHK0TPAgZvkVGD9CdQ&s", // Imagem do produto
-        additionalOptions: ["Molho extra", "Batata canoa"], // Opções adicionais para o produto
-      },
-    ],
-  },
-  {
-    categoria: "Bebidas",
-    produtos: [
-      {
-        id: "5",
-        name: "Coca-Cola 2L",
-        description: "Coca-Cola 2L",
-        price: 8.9,
-        image_url:
-          "https://images.tcdn.com.br/img/img_prod/1115696/coca_cola_original_lata_350ml_27_1_152c3b66fb7a84db006d3238b116cb50.png",
-        price_from: false,
-        additionalOptions: ["Sem gelo", "Com gelo"], // Opções adicionais para o produto
-      },
-      {
-        id: "6",
-        name: "Guaraná Antarctica 2L",
-        description: "Guaraná Antarctica 2L",
-        price: 9.5,
-        image_url:
-          "https://images.tcdn.com.br/img/img_prod/1115696/guarana_antarctica_original_lata_350ml_27_1_152c3b66fb7a84db006d3238b116cb50.png",
-        price_from: false,
-        additionalOptions: ["Sem gelo", "Com gelo"], // Opções adicionais para o produto
-      },
-    ],
-  },
-  {
-    categoria: "Sobremesas",
-    produtos: [
-      {
-        id: "7",
-        name: "Sorvete de Chocolate",
-        description: "Sorvete de Chocolate",
-        price: 8.9,
-        image_url: "https://example.com/sorvete-chocolate.jpg", // Imagem do produto
-        price_from: false,
-        additionalOptions: ["Cobertura de calda de chocolate", "Granulado"], // Opções adicionais para o produto
-      },
-      {
-        id: "8",
-        name: "Pudim de Leite",
-        description: "Delicioso pudim de leite condensado",
-        price: 7.5,
-        image_url: "https://example.com/pudim.jpg", // Imagem do produto
-        price_from: true,
-        additionalOptions: ["Cobertura de caramelo", "Sem cobertura"], // Opções adicionais para o produto
-      },
-    ],
-  },
-  {
-    categoria: "Especial do Mês",
-    produtos: [
-      {
-        id: "9",
-        name: "Burger Especial do Mês",
-        description:
-          "Burger exclusivo do mês, com blend de carne especial, cebola roxa caramelizada e queijo brie.",
-        price: 55.0,
-        image_url: "https://example.com/burger-especial.jpg", // Imagem do produto
-        price_from: false,
-        additionalOptions: ["Bacon", "Queijo brie extra"], // Opções adicionais para o produto
-      },
-    ],
-  },
-];
 
 interface CartItem {
   product: Product;
@@ -179,6 +56,11 @@ export default function RestaurantePage() {
 
   const [loading, setLoading] = useState<boolean>(true); // Estado de carregamento
   const [fetchError, setFetchError] = useState<string | null>(null); // Renomeado para fetchError
+  const [prodFetchError, setProdFetchError] = useState<string | null>(null); // Erro de produtos
+  const [prodLoading, setProdLoading] = useState<boolean>(true); // Carregando produtos
+  const [productsByCategory, setProductsByCategory] = useState<
+    ProductByCategory[]
+  >([]);
 
   function isRestaurantOpen(openingHours: string): boolean {
     const [opening, closing] = openingHours.split("-");
@@ -251,37 +133,38 @@ export default function RestaurantePage() {
   };
 
   useEffect(() => {
-    async function fetchRestaurant() {
-      if (query.slug) {
-        try {
-          setLoading(true); // Começar o loading
+    async function fetchAll() {
+      if (!query.slug) return;
 
-          const data = await getRestaurantBySlug(query.slug as string);
-          setLoading(false); // Finalizar o loading
-          if (data) {
-            setRestaurantData(data);
-            setRestaurantName(
-              data.name || String(query.slug).replace("-", " ").toUpperCase()
-            );
-          } else {
-            setRestaurantName(
-              String(query.slug).replace("-", " ").toUpperCase()
-            );
-          }
-        } catch (err) {
-          setFetchError("Erro ao carregar restaurante"); // Renomeado para fetchError
-          console.error(err);
-          setRestaurantName(String(query.slug).replace("-", " ").toUpperCase());
-          setLoading(false);
-        }
+      try {
+        setLoading(true);
+        setProdLoading(true);
+
+        const rest = await getRestaurantBySlug(query.slug as string);
+        setRestaurantData(rest);
+        setRestaurantName(rest?.name ?? "Restaurante");
+
+        const prods = await getProducts(rest.id as string);
+        setProductsByCategory(prods);
+
+        setProdFetchError(null);
+      } catch (err) {
+        console.error(err);
+        setFetchError("Erro ao carregar restaurante");
+        setProdFetchError("Erro ao carregar produtos");
+      } finally {
+        setLoading(false);
+        setProdLoading(false);
       }
     }
-    fetchRestaurant();
+
+    fetchAll();
   }, [query.slug]);
 
-  const filteredProductsByCategory = mockProductsByCategory.map((cat) => ({
-    categoria: cat.categoria,
-    produtos: cat.produtos.filter((prod) =>
+  // Filtra os produtos por categoria e pesquisa
+  const filteredProductsByCategory = productsByCategory.map((cat) => ({
+    categoria: cat.name, // Categoria vindo da API
+    produtos: cat.products.filter((prod) =>
       prod.name.toLowerCase().includes(searchTerm.toLowerCase())
     ),
   }));
@@ -306,36 +189,18 @@ export default function RestaurantePage() {
     requestAnimationFrame(animation);
   };
 
-  // Se estiver carregando, exibe o spinner
-  if (loading) {
+  if (loading || prodLoading) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
-        <CircularProgress /> {/* Spinner de carregamento */}
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+        <CircularProgress size={32} />
       </Box>
     );
   }
 
-  // Se houve um erro ao buscar os dados
-  if (fetchError) {
+  if (fetchError || prodFetchError) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
-        <Typography variant="h6" color="error">
-          {fetchError}
-        </Typography>
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+        <Typography color="error">{fetchError || prodFetchError}</Typography>
       </Box>
     );
   }
@@ -389,7 +254,7 @@ export default function RestaurantePage() {
       >
         <LayoutRestaurante title="">
           <CategoryFilter
-            categories={mockProductsByCategory.map((c) => c.categoria)}
+            categories={productsByCategory.map((c) => c.name)}
             selectedCategory={selectedCategory}
             onSelectCategory={(category) => {
               setSelectedCategory(category);
@@ -416,8 +281,8 @@ export default function RestaurantePage() {
                   scrollbarWidth: "none",
                 }}
               >
-                {mockProductsByCategory
-                  .flatMap((cat) => cat.produtos)
+                {productsByCategory
+                  .flatMap((cat) => cat.products) // Garantindo que estamos pegando os produtos
                   .map((product) => (
                     <Box
                       key={product.id}
@@ -427,9 +292,9 @@ export default function RestaurantePage() {
                       }}
                     >
                       <ProductCard
-                        product={product}
+                        product={product} // Passando cada produto individualmente para o ProductCard
                         variant="vertical"
-                        onClick={(product) => handleOpenModal(product)}
+                        onClick={() => handleOpenModal(product)}
                         color={restaurantData?.color || "#1976d2"}
                       />
                     </Box>

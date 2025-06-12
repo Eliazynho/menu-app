@@ -52,3 +52,12 @@ export interface Restaurant {
   logo_url?: string; // Link da logo (opcional)
   background_url?: string; // Link da imagem de fundo (opcional)
 }
+
+export interface DeliveryAddress {
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  zipCode: string;
+}

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import {
@@ -130,8 +131,6 @@ export default function CheckoutPage() {
   // Estados para observações e tempo estimado
   const [observations, setObservations] = useState("");
   const [estimatedTime, setEstimatedTime] = useState("30-45 min");
-
-  setEstimatedTime("30-45 min");
 
   if (!restaurant || items.length === 0) {
     return (

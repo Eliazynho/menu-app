@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Container,
@@ -30,7 +30,6 @@ import {
   CreditCard,
   LocalShipping,
   Store,
-  Edit,
   ExpandMore,
   ExpandLess,
   CheckCircle,
@@ -131,6 +130,8 @@ export default function CheckoutPage() {
   // Estados para observações e tempo estimado
   const [observations, setObservations] = useState("");
   const [estimatedTime, setEstimatedTime] = useState("30-45 min");
+
+  setEstimatedTime("30-45 min");
 
   if (!restaurant || items.length === 0) {
     return (

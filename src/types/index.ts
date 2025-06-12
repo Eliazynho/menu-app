@@ -29,6 +29,7 @@ export interface CartRestaurant {
   name: string;
   logo_url?: string;
   color?: string;
+  delivery_fee?: number;
 }
 
 export interface CartItem {

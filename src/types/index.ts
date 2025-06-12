@@ -61,3 +61,11 @@ export interface DeliveryAddress {
   city: string;
   zipCode: string;
 }
+
+export interface PaymentMethod {
+  type: "credit" | "debit" | "pix" | "cash";
+  cardNumber?: string;
+  expiryDate?: string;
+  cvv?: string;
+  name?: string;
+}

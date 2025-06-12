@@ -132,6 +132,8 @@ export default function CheckoutPage() {
   const [observations, setObservations] = useState("");
   const [estimatedTime, setEstimatedTime] = useState("30-45 min");
 
+  const color = restaurant?.color || "#ff0000";
+
   if (!restaurant || items.length === 0) {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
@@ -216,10 +218,8 @@ export default function CheckoutPage() {
             {restaurant.name}
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-            <AccessTime
-              sx={{ fontSize: 16, mr: 0.5, color: "text.secondary" }}
-            />
-            <Typography variant="body2" color="text.secondary">
+            <AccessTime sx={{ fontSize: 16, mr: 0.5, color: color }} />
+            <Typography variant="body2" color={color}>
               {estimatedTime}
             </Typography>
           </Box>
@@ -236,7 +236,7 @@ export default function CheckoutPage() {
         >
           <FormControlLabel
             value="delivery"
-            control={<Radio />}
+            control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
             label={
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 <LocalShipping sx={{ mr: 1 }} />
@@ -246,7 +246,7 @@ export default function CheckoutPage() {
           />
           <FormControlLabel
             value="pickup"
-            control={<Radio />}
+            control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
             label={
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 <Store sx={{ mr: 1 }} />
@@ -571,7 +571,7 @@ export default function CheckoutPage() {
         <Typography variant="h5" fontWeight="bold">
           Confirmar Pedido
         </Typography>
-        <Typography color="text.secondary">
+        <Typography color={color}>
           Revise os dados antes de finalizar
         </Typography>
       </Box>
@@ -599,7 +599,7 @@ export default function CheckoutPage() {
           <Typography variant="h6" fontWeight="bold">
             Total
           </Typography>
-          <Typography variant="h6" fontWeight="bold" color="primary">
+          <Typography variant="h6" fontWeight="bold" color="success.main">
             R$ {total.toFixed(2)}
           </Typography>
         </Box>

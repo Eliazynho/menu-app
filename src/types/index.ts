@@ -25,6 +25,8 @@ export interface Product {
 }
 // types/index.ts
 export interface CartRestaurant {
+  phone: string;
+  address: string;
   id: string;
   name: string;
   logo_url?: string;

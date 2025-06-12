@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Box, Typography, Button, CircularProgress } from "@mui/material";
@@ -9,8 +10,11 @@ import ProductModal from "@/components/ProductModal";
 import Sidebar from "@/components/Sidebar";
 import { Restaurant, Product, ProductByCategory } from "@/types";
 import CartBar from "@/components/CartBar";
-import { getProducts } from "@/pages/api/products"; // Alteração para pegar os produtos
+import { getProducts } from "@/pages/api/products";
 import { getRestaurantBySlug } from "@/pages/api/restaurants";
+// Importações do Redux
+import { useAppSelector, useAppDispatch } from "../../hooks/redux";
+import { addToCart, clearCart } from "../../redux/actions/cartActions";
 
 const precoAdicionais: Record<string, number> = {
   "Queijo extra": 3.0,
@@ -24,14 +28,7 @@ const precoAdicionais: Record<string, number> = {
   "Batata canoa": 4.0,
   Bacon: 4.5,
   "Queijo brie extra": 5.0,
-  // Adicione mais conforme necessidade
 };
-
-interface CartItem {
-  product: Product;
-  additionalOptions: Record<string, number>;
-  quantity: number;
-}
 
 function easeInOutQuad(t: number, b: number, c: number, d: number) {
   let x = t / (d / 2);
@@ -42,22 +39,30 @@ function easeInOutQuad(t: number, b: number, c: number, d: number) {
 
 export default function RestaurantePage() {
   const { query } = useRouter();
+
+  // Redux hooks
+  const dispatch = useAppDispatch();
+  const cartItems = useAppSelector((state) => state.cart.items);
+  const cartRestaurant = useAppSelector((state) => state.cart.restaurant);
+
   const [restaurantName, setRestaurantName] = useState("");
   const [restaurantData, setRestaurantData] = useState<Restaurant | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [openModal, setOpenModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+
+  // Removido o estado local do cart - agora usa Redux
+
   const isOpen = restaurantData?.opening_hours
     ? isRestaurantOpen(restaurantData.opening_hours)
     : false;
 
-  const [loading, setLoading] = useState<boolean>(true); // Estado de carregamento
-  const [fetchError, setFetchError] = useState<string | null>(null); // Renomeado para fetchError
-  const [prodFetchError, setProdFetchError] = useState<string | null>(null); // Erro de produtos
-  const [prodLoading, setProdLoading] = useState<boolean>(true); // Carregando produtos
+  const [loading, setLoading] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [prodFetchError, setProdFetchError] = useState<string | null>(null);
+  const [prodLoading, setProdLoading] = useState<boolean>(true);
   const [productsByCategory, setProductsByCategory] = useState<
     ProductByCategory[]
   >([]);
@@ -66,14 +71,9 @@ export default function RestaurantePage() {
     const [opening, closing] = openingHours.split("-");
     const [openingHour, openingMinute] = opening.split(":").map(Number);
     const [closingHour, closingMinute] = closing.split(":").map(Number);
-
     const now = new Date();
-
-    // Definindo a hora de abertura e fechamento com os minutos
     const openTime = new Date(now.setHours(openingHour, openingMinute, 0, 0));
     const closeTime = new Date(now.setHours(closingHour, closingMinute, 0, 0));
-
-    // Comparando diretamente a hora atual com os horários de abertura e fechamento
     return now >= openTime && now <= closeTime;
   }
 
@@ -81,44 +81,56 @@ export default function RestaurantePage() {
     setCartOpen((prev) => !prev);
   };
 
-  // Função para adicionar ao carrinho, agora com adicionais e quantidade inicial 1
+  // Função atualizada para usar Redux
   const handleAddToCart = (
     product: Product,
-    additionalOptions: Record<string, number>
+    additionalOptions: Record<string, number> = {},
+    quantity: number = 1
   ) => {
-    setCart((prevCart) => {
-      const existingIndex = prevCart.findIndex(
-        (item) =>
-          item.product.id === product.id &&
-          JSON.stringify(item.additionalOptions) ===
-            JSON.stringify(additionalOptions)
+    if (!restaurantData) return;
+
+    // Verifica se é um restaurante diferente
+    if (cartRestaurant && cartRestaurant.id !== restaurantData.id) {
+      const confirmChange = window.confirm(
+        `Você já tem itens de ${cartRestaurant.name}. Deseja limpar o carrinho e adicionar itens de ${restaurantData.name}?`
       );
-
-      if (existingIndex !== -1) {
-        const newCart = [...prevCart];
-        newCart[existingIndex].quantity += 1;
-        return newCart;
+      if (confirmChange) {
+        dispatch(clearCart());
+      } else {
+        return;
       }
+    }
 
-      return [...prevCart, { product, additionalOptions, quantity: 1 }];
-    });
+    dispatch(
+      addToCart(
+        {
+          id: restaurantData.id,
+          name: restaurantData.name,
+          logo_url: restaurantData.logo_url,
+          color: restaurantData.color,
+        },
+        product,
+        quantity,
+        additionalOptions
+      )
+    );
   };
 
-  // Calcula o preço total considerando produto + adicionais e quantidade
-  const calcularPrecoItem = (item: CartItem) => {
+  // Função para calcular preço do item (adaptada para Redux)
+  const calcularPrecoItem = (item: any) => {
     const precoProduto = item.product.price;
     const precoAdicionaisSomados = Object.entries(
-      item.additionalOptions
+      item.additionalOptions || {}
     ).reduce((acc, [nomeOpcao, quantidade]) => {
       const precoOpcao = precoAdicionais[nomeOpcao] || 0;
-      return acc + precoOpcao * quantidade;
+      return acc + precoOpcao * (quantidade as number);
     }, 0);
     return (precoProduto + precoAdicionaisSomados) * item.quantity;
   };
 
-  // Calcula total do carrinho somando todos os itens com adicionais
-  const totalCarrinho = cart.reduce(
-    (acc, item) => acc + calcularPrecoItem(item),
+  // Calcula total do carrinho usando Redux
+  const totalCarrinho = cartItems.reduce(
+    (acc: number, item: any) => acc + calcularPrecoItem(item),
     0
   );
 
@@ -135,18 +147,14 @@ export default function RestaurantePage() {
   useEffect(() => {
     async function fetchAll() {
       if (!query.slug) return;
-
       try {
         setLoading(true);
         setProdLoading(true);
-
         const rest = await getRestaurantBySlug(query.slug as string);
         setRestaurantData(rest);
         setRestaurantName(rest?.name ?? "Restaurante");
-
         const prods = await getProducts(rest.id as string);
         setProductsByCategory(prods);
-
         setProdFetchError(null);
       } catch (err) {
         console.error(err);
@@ -157,13 +165,11 @@ export default function RestaurantePage() {
         setProdLoading(false);
       }
     }
-
     fetchAll();
   }, [query.slug]);
 
-  // Filtra os produtos por categoria e pesquisa
   const filteredProductsByCategory = productsByCategory.map((cat) => ({
-    categoria: cat.name, // Categoria vindo da API
+    categoria: cat.name,
     produtos: cat.products.filter((prod) =>
       prod.name.toLowerCase().includes(searchTerm.toLowerCase())
     ),
@@ -227,11 +233,10 @@ export default function RestaurantePage() {
           open={cartOpen}
           onToggle={toggleCartBar}
           userName="alo"
-          cartItems={cart}
-          setCartItems={setCart}
           color={restaurantData?.color || "#1976d2"}
         />
       </Box>
+
       <RestauranteHeader
         nome={restaurantName || "Carregando..."}
         imagemFundo={restaurantData?.background_url}
@@ -263,12 +268,12 @@ export default function RestaurantePage() {
             onSearch={setSearchTerm}
             color={restaurantData?.color || "#1976d2"}
           />
+
           <Box sx={{ mt: { xs: 2, sm: 0 } }}>
             <Box sx={{ padding: 2 }}>
               <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
                 Mais Vendidos
               </Typography>
-
               <Box
                 sx={{
                   display: "flex",
@@ -282,7 +287,7 @@ export default function RestaurantePage() {
                 }}
               >
                 {productsByCategory
-                  .flatMap((cat) => cat.products) // Garantindo que estamos pegando os produtos
+                  .flatMap((cat) => cat.products)
                   .map((product) => (
                     <Box
                       key={product.id}
@@ -292,7 +297,7 @@ export default function RestaurantePage() {
                       }}
                     >
                       <ProductCard
-                        product={product} // Passando cada produto individualmente para o ProductCard
+                        product={product}
                         variant="vertical"
                         onClick={() => handleOpenModal(product)}
                         color={restaurantData?.color || "#1976d2"}
@@ -301,6 +306,7 @@ export default function RestaurantePage() {
                   ))}
               </Box>
             </Box>
+
             {filteredProductsByCategory.map((categoria) => (
               <Box
                 id={categoria.categoria}
@@ -310,7 +316,6 @@ export default function RestaurantePage() {
                 <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
                   {categoria.categoria}
                 </Typography>
-
                 <Box
                   sx={{
                     display: "flex",
@@ -328,7 +333,7 @@ export default function RestaurantePage() {
                         product={product}
                         variant="horizontal"
                         onAddToCart={(product) => {
-                          handleAddToCart(product, {}); // Passa adicionais vazios por padrão
+                          handleAddToCart(product, {}, 1);
                         }}
                         onClick={(product) => handleOpenModal(product)}
                       />
@@ -349,7 +354,7 @@ export default function RestaurantePage() {
         color={restaurantData?.color || "#1976d2"}
       />
 
-      {cart.length > 0 && (
+      {cartItems.length > 0 && ( // Usando Redux
         <Box
           sx={{
             position: "sticky",
@@ -365,7 +370,7 @@ export default function RestaurantePage() {
               visibility: "visible",
             },
           }}
-          className={cart.length > 0 ? "show" : ""}
+          className={cartItems.length > 0 ? "show" : ""}
         >
           <Button
             onClick={toggleCartBar}

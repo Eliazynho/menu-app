@@ -20,6 +20,21 @@ export interface Product {
   description: string;
   price: number;
   image_url: string;
+  category_id?: string;
+  add_categoriesId?: string;
+}
+// types/index.ts
+export interface CartRestaurant {
+  id: string;
+  name: string;
+  logo_url?: string;
+  color?: string;
+}
+
+export interface CartItem {
+  product: Product;
+  additionalOptions: Record<string, number>;
+  quantity: number;
 }
 
 export interface Restaurant {
@@ -27,6 +42,7 @@ export interface Restaurant {
   name: string;
   slug: string;
   description?: string;
+  delivery_fee?: number;
   created_at?: string;
   color: string;
   minimum_order_value: number;

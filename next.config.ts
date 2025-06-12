@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
       "static.ifood-static.com.br",
       "static.vecteezy.com",
       "encrypted-tbn0.gstatic.com",
+      "upload.wikimedia.org",
+      "static.ifood-static.com.br",
     ], // Adicione o domínio específico aqui
   },
 };

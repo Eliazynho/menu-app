@@ -14,7 +14,6 @@ interface Product {
   description: string;
   price: number;
   image_url: string;
-  price_from?: boolean; // Usado quando o preço é "a partir de"
 }
 
 interface Props {

@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
-import { Button, Box, Typography, TextField } from "@mui/material";
-import { Product } from "@/types"; // Tipo do produto, defina isso conforme sua estrutura
+import {
+  Button,
+  Box,
+  Typography,
+  TextField,
+  CircularProgress,
+} from "@mui/material";
+import { Product } from "@/types";
+import { AdditionalCategory } from "@/types";
 import { useState } from "react";
 import { darken } from "@mui/system";
 
@@ -10,9 +17,24 @@ interface ProductModalProps {
   onClose: () => void;
   product: Product | null;
   color: string;
+  additionalCategories: AdditionalCategory[];
+  additionalsByCategory: Array<{
+    category: string;
+    categoryId: string;
+    additionals: Array<{
+      id: string;
+      name: string;
+      price: number;
+      created_at: string;
+      restaurant_id: string;
+      add_categories_id: string;
+    }>;
+  }>;
+  additionalsLoading: boolean;
   onAddToCart: (
     product: Product,
-    additionalOptions: Record<string, number>
+    additionalOptions: Record<string, number>,
+    quantity: number
   ) => void;
 }
 
@@ -22,40 +44,76 @@ const ProductModal = ({
   product,
   onAddToCart,
   color,
+  additionalCategories,
+  additionalsByCategory,
+  additionalsLoading,
 }: ProductModalProps) => {
   const [selectedOptions, setSelectedOptions] = useState<
     Record<string, number>
   >({});
+  const [quantity, setQuantity] = useState(1);
+  const [observation, setObservation] = useState("");
 
-  // const handleChangeQuantity = (option: string, action: "add" | "remove") => {
-  //   setSelectedOptions((prevState) => {
-  //     const currentCount = prevState[option] || 0;
-  //     const newCount =
-  //       action === "add" ? currentCount + 1 : Math.max(currentCount - 1, 0);
-  //     return { ...prevState, [option]: newCount };
-  //   });
-  // };
+  const handleChangeQuantity = (optionId: string, action: "add" | "remove") => {
+    setSelectedOptions((prevState) => {
+      const currentCount = prevState[optionId] || 0;
+      const newCount =
+        action === "add" ? currentCount + 1 : Math.max(currentCount - 1, 0);
+      return { ...prevState, [optionId]: newCount };
+    });
+  };
 
-  const handleAddToCart = () => {
-    if (product) {
-      onAddToCart(product, selectedOptions); // Adiciona o produto ao carrinho com as opções adicionais
-      onClose(); // Fecha o modal após adicionar o item
+  const handleProductQuantityChange = (action: "add" | "remove") => {
+    if (action === "add") {
+      setQuantity((prev) => prev + 1);
+    } else {
+      setQuantity((prev) => Math.max(prev - 1, 1));
     }
   };
 
-  if (!product) return null; // Caso não haja produto, não exibe nada
+  const calculateAdditionalPrice = () => {
+    return Object.entries(selectedOptions).reduce((total, [optionId, qty]) => {
+      const option = additionalsByCategory
+        .flatMap((cat) => cat.additionals)
+        .find((add) => add.id === optionId);
+      return total + (option ? option.price * qty : 0);
+    }, 0);
+  };
+
+  const totalPrice = product
+    ? (product.price + calculateAdditionalPrice()) * quantity
+    : 0;
+
+  const handleAddToCart = () => {
+    if (product) {
+      onAddToCart(product, selectedOptions, quantity);
+      setSelectedOptions({});
+      setQuantity(1);
+      setObservation("");
+      onClose();
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedOptions({});
+    setQuantity(1);
+    setObservation("");
+    onClose();
+  };
+
+  if (!product) return null;
 
   return (
     <Box
       sx={{
-        display: open ? "block" : "none", // Exibe o modal quando 'open' for true
+        display: open ? "block" : "none",
         position: "fixed",
         top: 0,
         left: 0,
         width: "100%",
         height: "100%",
-        backgroundColor: "rgba(0, 0, 0, 0.5)", // Cor do fundo do modal
-        zIndex: 1300, // Ajuste o zIndex para garantir que o modal esteja acima dos outros componentes
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        zIndex: 1300,
       }}
     >
       <Box
@@ -68,21 +126,21 @@ const ProductModal = ({
           width: "90%",
           maxWidth: "600px",
           height: "80%",
-          overflowY: "auto", // Adiciona rolagem para o modal
+          overflowY: "auto",
           borderRadius: "8px",
           boxShadow: 2,
           display: "flex",
           flexDirection: "column",
         }}
       >
-        {/* Botão de Fechar sticky no canto superior direito */}
+        {/* Botão de Fechar */}
         <Box
           sx={{
             position: "sticky",
-            top: "10px", // Fixa o botão no topo
-            left: "30px", // Centraliza horizontalmente
-            transform: "translateX(-50%)", // Ajuste para centralização precisa
-            zIndex: 3, // Garantir que o botão de fechamento fique acima de tudo
+            top: "10px",
+            left: "30px",
+            transform: "translateX(-50%)",
+            zIndex: 3,
             backgroundColor: `${color}`,
             width: "40px",
             height: "40px",
@@ -94,14 +152,16 @@ const ProductModal = ({
           }}
         >
           <Button
-            onClick={onClose}
+            onClick={handleClose}
             sx={{
               fontSize: "1.2rem",
               fontWeight: "1000",
               color: "white",
+              minWidth: "auto",
+              padding: 0,
             }}
           >
-            X
+            ×
           </Button>
         </Box>
 
@@ -114,7 +174,7 @@ const ProductModal = ({
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              zIndex: 1, // A imagem deve estar abaixo do conteúdo
+              zIndex: 1,
             }}
           />
         </Box>
@@ -141,67 +201,133 @@ const ProductModal = ({
           >
             {product.name}
           </Typography>
-          <Box sx={{ marginTop: 1, textAlign: "center" }}>
+          <Box sx={{ marginTop: 1, textAlign: "center", px: 2 }}>
             <Typography variant="body1">{product.description}</Typography>
+            <Typography variant="h6" sx={{ mt: 1, fontWeight: "bold" }}>
+              R$ {product.price.toFixed(2)}
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Quantidade do produto */}
+        <Box sx={{ padding: 2 }}>
+          <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
+            Quantidade:
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={() => handleProductQuantityChange("remove")}
+              disabled={quantity === 1}
+              sx={{ minWidth: "40px", height: "40px" }}
+            >
+              -
+            </Button>
+            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+              {quantity}
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => handleProductQuantityChange("add")}
+              sx={{ minWidth: "40px", height: "40px" }}
+            >
+              +
+            </Button>
           </Box>
         </Box>
 
         {/* Opções adicionais do produto */}
-        <Box sx={{ width: "100%" }}>
-          <Typography
-            variant="h6"
-            sx={{
-              marginBottom: 1,
-              backgroundColor: `${color}`,
-              width: "100%",
-              color: "white",
-              padding: 1,
-              fontWeight: "bold",
-            }}
-          >
-            Adicionais:
-          </Typography>
-          {/* {product.additionalOptions?.map((option, index) => (
-            <Box
-              key={index}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 1,
-                ml: 2,
-              }}
-            >
-              <Typography sx={{ marginRight: 2 }} variant="body1">
-                {option}
-              </Typography>
-              <Box
-                sx={{ display: "flex", alignItems: "center", marginRight: 2 }}
-              >
-                <Button
-                  variant="contained"
-                  onClick={() => handleChangeQuantity(option, "add")}
-                  style={{
+        <Box sx={{ width: "100%", px: 2 }}>
+          {additionalsLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress size={24} />
+              <Typography sx={{ ml: 2 }}>Carregando adicionais...</Typography>
+            </Box>
+          ) : additionalsByCategory.length > 0 ? (
+            additionalsByCategory.map((categoryGroup) => (
+              <Box key={categoryGroup.categoryId} sx={{ mb: 3 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    marginBottom: 1,
                     backgroundColor: `${color}`,
+                    width: "100%",
                     color: "white",
+                    padding: 1,
+                    fontWeight: "bold",
                   }}
                 >
-                  +1
-                </Button>
-                <Typography sx={{ margin: "0 10px" }} variant="body1">
-                  {selectedOptions[option] || 0}
+                  {categoryGroup.category}:
                 </Typography>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={() => handleChangeQuantity(option, "remove")}
-                  disabled={(selectedOptions[option] || 0) === 0}
-                >
-                  -1
-                </Button>
+                {categoryGroup.additionals.map((option) => (
+                  <Box
+                    key={option.id}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 1,
+                      padding: 1,
+                      border: "1px solid #eee",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body1" sx={{ fontWeight: "500" }}>
+                        {option.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        R$ {option.price.toFixed(2)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() =>
+                          handleChangeQuantity(option.id, "remove")
+                        }
+                        disabled={(selectedOptions[option.id] || 0) === 0}
+                        sx={{ minWidth: "32px", height: "32px" }}
+                      >
+                        -
+                      </Button>
+                      <Typography
+                        variant="body1"
+                        sx={{ minWidth: "20px", textAlign: "center" }}
+                      >
+                        {selectedOptions[option.id] || 0}
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleChangeQuantity(option.id, "add")}
+                        sx={{
+                          minWidth: "32px",
+                          height: "32px",
+                          borderColor: color,
+                          color: color,
+                          "&:hover": {
+                            backgroundColor: color,
+                            color: "white",
+                          },
+                        }}
+                      >
+                        +
+                      </Button>
+                    </Box>
+                  </Box>
+                ))}
               </Box>
-            </Box>
-          ))} */}
+            ))
+          ) : (
+            <Typography
+              variant="body1"
+              sx={{ textAlign: "center", py: 2, color: "text.secondary" }}
+            >
+              Nenhum adicional disponível para este produto.
+            </Typography>
+          )}
         </Box>
 
         {/* Campo de observações */}
@@ -209,14 +335,16 @@ const ProductModal = ({
           <TextField
             label="Observação"
             multiline
-            rows={4}
+            rows={3}
             fullWidth
             variant="outlined"
+            value={observation}
+            onChange={(e) => setObservation(e.target.value)}
             sx={{ mb: 2 }}
           />
         </Box>
 
-        {/* Botão para adicionar ao carrinho sticky no final */}
+        {/* Botão para adicionar ao carrinho */}
         <Box
           sx={{
             position: "sticky",
@@ -225,6 +353,7 @@ const ProductModal = ({
             backgroundColor: "white",
             padding: 2,
             zIndex: 2,
+            borderTop: "1px solid #eee",
           }}
         >
           <Button
@@ -233,14 +362,15 @@ const ProductModal = ({
               backgroundColor: `${color}`,
               color: "white",
               "&:hover": {
-                backgroundColor: darken(color, 0.5),
+                backgroundColor: darken(color, 0.2),
               },
               fontSize: "1rem",
               fontWeight: "bold",
               width: "100%",
+              py: 1.5,
             }}
           >
-            Adicionar ao Carrinho
+            Adicionar ao Carrinho - R$ {totalPrice.toFixed(2)}
           </Button>
         </Box>
       </Box>

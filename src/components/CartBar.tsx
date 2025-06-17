@@ -10,36 +10,32 @@ import {
   changeCartQuantity,
   removeFromCart,
   updateAdditionals,
-} from "../redux/actions/cartActions";
-import { CartItem } from "@/types";
+} from "../redux/actions/cartActions"; // Verifique o caminho correto aqui
+import { CartItem, AdditionalOption } from "@/types"; // Importe o tipo Additional
 
 interface CartBarProps {
   open: boolean;
   onToggle: () => void;
   userName: string;
   color: string;
+  // 1. Adicione a prop para os adicionais mapeados por ID
+  flatAdditionals: Record<string, AdditionalOption>;
 }
 
-// Defina os preços dos adicionais aqui também (ou importe do restaurante)
-const precoAdicionais: Record<string, number> = {
-  "Queijo extra": 3.0,
-  "Batata extra": 4.0,
-  "Molho especial": 2.5,
-  "Cebola caramelizada": 2.0,
-  "Molho barbecue": 2.0,
-  "Queijo cheddar": 3.0,
-  "Molho picante": 2.5,
-  "Molho extra": 2.0,
-  "Batata canoa": 4.0,
-  Bacon: 4.5,
-  "Queijo brie extra": 5.0,
-};
+// Remova o objeto precoAdicionais hardcoded
+// const precoAdicionais: Record<string, number> = { ... };
 
-function CartBar({ open, onToggle, userName, color }: CartBarProps) {
+function CartBar({
+  open,
+  onToggle,
+  userName,
+  color,
+  flatAdditionals,
+}: CartBarProps) {
+  // Receba a prop
   // Redux hooks
   const dispatch = useAppDispatch();
   const { items: cartItems } = useAppSelector((state) => state.cart);
-
   const router = useRouter();
 
   // Incrementa quantidade do produto
@@ -62,24 +58,23 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
   };
 
   // Incrementa quantidade de adicional para um produto específico
-  const incrementAdditional = (cartIndex: number, option: string) => {
+  // O 'option' aqui é o ID do adicional
+  const incrementAdditional = (cartIndex: number, additionalId: string) => {
     const currentItem = cartItems[cartIndex];
     const newOptions = { ...currentItem.additionalOptions };
-    newOptions[option] = (newOptions[option] || 0) + 1;
+    newOptions[additionalId] = (newOptions[additionalId] || 0) + 1;
     dispatch(updateAdditionals(cartIndex, newOptions));
   };
 
   // Decrementa quantidade de adicional, mínimo 0 (remove se 0)
-  const decrementAdditional = (cartIndex: number, option: string) => {
+  // O 'option' aqui é o ID do adicional
+  const decrementAdditional = (cartIndex: number, additionalId: string) => {
     const currentItem = cartItems[cartIndex];
     const newOptions = { ...currentItem.additionalOptions };
-
-    if (!newOptions[option]) return; // já 0
-
-    newOptions[option] = Math.max(0, newOptions[option] - 1);
+    if (!newOptions[additionalId]) return; // já 0
+    newOptions[additionalId] = Math.max(0, newOptions[additionalId] - 1);
     // Remove a chave se quantidade 0
-    if (newOptions[option] === 0) delete newOptions[option];
-
+    if (newOptions[additionalId] === 0) delete newOptions[additionalId];
     dispatch(updateAdditionals(cartIndex, newOptions));
   };
 
@@ -88,8 +83,11 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
     const precoProduto = item.product.price;
     const precoAdicionaisSomados = Object.entries(
       item.additionalOptions || {}
-    ).reduce((acc, [nomeOpcao, quantidade]) => {
-      const precoOpcao = precoAdicionais[nomeOpcao] || 0;
+    ).reduce((acc, [additionalId, quantidade]) => {
+      // Use additionalId aqui
+      // 2. Use flatAdditionals para obter o preço pelo ID
+      const additional = flatAdditionals[additionalId];
+      const precoOpcao = additional ? additional.price : 0; // Use o preço do dado carregado
       return acc + precoOpcao * quantidade;
     }, 0);
     return (precoProduto + precoAdicionaisSomados) * item.quantity;
@@ -116,16 +114,7 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
   return (
     <Box sx={{ display: "flex" }}>
       {/* Botão para abrir/fechar carrinho */}
-      <IconButton
-        color="inherit"
-        edge="start"
-        onClick={onToggle}
-        sx={{
-          marginRight: 2,
-          color: "white",
-          ...(open && { display: "none" }),
-        }}
-      />
+      {/* ... (seu código do botão) ... */}
 
       {open && (
         <Box
@@ -148,12 +137,12 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
         open={open}
         sx={{
           "& .MuiDrawer-paper": {
-            width: "70%",
+            width: { xs: "80%", sm: "50%", md: "40%", lg: "30%" }, // Ajuste a largura responsiva
             boxSizing: "border-box",
             backgroundColor: "white",
             display: "flex",
             flexDirection: "column",
-            paddingBottom: "100px",
+            paddingBottom: "100px", // Espaço para o rodapé fixo
           },
         }}
       >
@@ -166,8 +155,19 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
             p: 2,
             borderBottom: "1px solid #ccc",
             height: 60,
+            position: "sticky", // Fixa o cabeçalho
+            top: 0,
+            bgcolor: "white",
+            zIndex: 1,
           }}
         >
+          <IconButton
+            size="small"
+            onClick={onToggle}
+            sx={{ position: "absolute", left: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
           <Typography variant="h6" fontWeight="bold">
             Minha Sacola
           </Typography>
@@ -188,7 +188,7 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
 
           {cartItems.map((item: CartItem, index: number) => (
             <Box
-              key={index}
+              key={index} // Considere usar um ID único do item do carrinho se disponível, ou uma combinação de product ID + adicionais para uma key mais robusta em cenários complexos. Index funciona para este caso simples.
               sx={{
                 display: "flex",
                 flexDirection: "column",
@@ -214,19 +214,20 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
                     }
                     width={60}
                     height={60}
-                    style={{ borderRadius: 8 }}
+                    style={{ borderRadius: 8, objectFit: "cover" }} // Adicionado objectFit
                   />
                   <Box>
                     <Typography fontWeight="bold">
                       {item.product.name}
                     </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ whiteSpace: "pre-line" }}
-                    >
-                      {/* {item.product.components?.join("\n") || ""} */}
-                    </Typography>
+                    {/* Descrição do produto ou componentes, se houver */}
+                    {/* <Typography
+                       variant="body2"
+                       color="text.secondary"
+                       sx={{ whiteSpace: "pre-line" }}
+                     >
+                       {item.product.components?.join("\n") || ""}
+                     </Typography> */}
                   </Box>
                 </Box>
                 <IconButton onClick={() => removeItem(index)} size="small">
@@ -236,41 +237,58 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
 
               {/* Adicionais */}
               <Box sx={{ mt: 1, mb: 1 }}>
+                {/* 3. Iterar usando additionalId e qty */}
                 {Object.entries(item.additionalOptions || {}).map(
-                  ([option, qty]) => (
-                    <Box
-                      key={option}
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        mb: 0.5,
-                        gap: 1,
-                      }}
-                    >
-                      <Typography sx={{ fontSize: 14 }}>
-                        {option} x{qty} ( R$
-                        {(precoAdicionais[option] * qty).toFixed(2)})
-                      </Typography>
-                      <Box sx={{ display: "flex", gap: 0.5 }}>
-                        <IconButton
-                          size="small"
-                          onClick={() => decrementAdditional(index, option)}
-                        >
-                          <Remove />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => incrementAdditional(index, option)}
-                        >
-                          <Add />
-                        </IconButton>
+                  ([additionalId, qty]) => {
+                    // 4. Buscar o objeto adicional usando o ID
+                    const additional = flatAdditionals
+                      ? flatAdditionals[additionalId]
+                      : null;
+
+                    // Não renderiza se o adicional não for encontrado (segurança)
+                    if (!additional) return null;
+
+                    return (
+                      <Box
+                        key={additionalId} // Usar o ID como key
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          mb: 0.5,
+                          gap: 1,
+                        }}
+                      >
+                        <Typography sx={{ fontSize: 14 }}>
+                          {/* 5. Exibir o nome e calcular preço usando o preço do adicional */}
+                          {additional.name} x{qty} ( R$
+                          {(additional.price * qty).toFixed(2)})
+                        </Typography>
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() =>
+                              decrementAdditional(index, additionalId)
+                            } // Passa o ID
+                          >
+                            <Remove />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() =>
+                              incrementAdditional(index, additionalId)
+                            } // Passa o ID
+                          >
+                            <Add />
+                          </IconButton>
+                        </Box>
                       </Box>
-                    </Box>
-                  )
+                    );
+                  }
                 )}
               </Box>
 
+              {/* Controles de quantidade do produto e preço total do item */}
               <Box
                 sx={{
                   mt: 1,
@@ -283,7 +301,7 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
                   <IconButton
                     size="small"
                     onClick={() => decrementItem(index)}
-                    disabled={item.quantity === 1}
+                    disabled={item.quantity <= 1} // Desabilita se a quantidade for 1 ou menos
                   >
                     <Remove />
                   </IconButton>
@@ -293,39 +311,53 @@ function CartBar({ open, onToggle, userName, color }: CartBarProps) {
                   </IconButton>
                 </Box>
                 <Typography fontWeight="bold">
-                  R$ {calcularPrecoItem(item).toFixed(2)}
+                  R$ {calcularPrecoItem(item).toFixed(2)}{" "}
+                  {/* Já calcula o total do item */}
                 </Typography>
               </Box>
             </Box>
           ))}
+          {cartItems.length === 0 && (
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              align="center"
+              sx={{ mt: 4 }}
+            >
+              Sua sacola está vazia.
+            </Typography>
+          )}
         </Box>
 
         {/* Rodapé fixo com total e botão */}
-        <Box
-          sx={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: "#fff",
-            p: 2,
-            borderTop: "1px solid #ccc",
-            boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-          }}
-        >
-          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-            <Typography fontWeight="bold">Total:</Typography>
-            <Typography fontWeight="bold">R$ {totalPrice}</Typography>
-          </Box>
-          <Button
-            fullWidth
-            variant="contained"
-            sx={{ mt: 2, backgroundColor: color }}
-            onClick={() => router.push("/checkout")}
+        {cartItems.length > 0 && ( // Só mostra o rodapé se houver itens
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: "#fff",
+              p: 2,
+              borderTop: "1px solid #ccc",
+              boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+              zIndex: 2, // Garante que fique acima do conteúdo rolável
+            }}
           >
-            Finalizar Compra
-          </Button>
-        </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography fontWeight="bold">Total:</Typography>
+              <Typography fontWeight="bold">R$ {totalPrice}</Typography>
+            </Box>
+            <Button
+              fullWidth
+              variant="contained"
+              sx={{ mt: 2, backgroundColor: color }}
+              onClick={() => router.push("/checkout")}
+            >
+              Finalizar Compra
+            </Button>
+          </Box>
+        )}
       </Drawer>
     </Box>
   );

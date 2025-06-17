@@ -1,4 +1,4 @@
-// hooks/redux.ts
+// hooks/redux.ts (atualizar os hooks)
 import { useDispatch, useSelector, TypedUseSelectorHook } from "react-redux";
 import type { RootState, AppDispatch } from "../redux/store";
 

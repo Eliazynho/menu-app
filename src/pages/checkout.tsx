@@ -73,11 +73,7 @@ interface DeliveryAddress {
 }
 
 interface PaymentMethod {
-  type: "credit" | "debit" | "pix" | "cash";
-  cardNumber?: string;
-  expiryDate?: string;
-  cvv?: string;
-  name?: string;
+  type: "credit" | "pix" | "cash";
 }
 
 const steps = [
@@ -110,7 +106,7 @@ export default function CheckoutPage() {
   const [deliveryType, setDeliveryType] = useState<"delivery" | "pickup">(
     "delivery"
   );
-  const [expandedItems, setExpandedItems] = useState(false);
+  const [expandedItems, setExpandedItems] = useState(true);
   const [loading, setLoading] = useState(false);
 
   // Estados para endereço
@@ -136,18 +132,36 @@ export default function CheckoutPage() {
 
   if (!restaurant || items.length === 0) {
     return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Seu carrinho está vazio
-        </Alert>
-        <Button
-          variant="contained"
-          onClick={() => router.back()}
-          startIcon={<ArrowBack />}
-        >
-          Voltar ao Cardápio
-        </Button>
-      </Container>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <Container maxWidth="md" sx={{ py: 4 }}>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Seu carrinho está vazio
+          </Alert>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <Button
+              variant="contained"
+              onClick={() => router.back()}
+              startIcon={<ArrowBack />}
+              sx={{ mt: 2, backgroundColor: color }}
+            >
+              Voltar ao Cardápio
+            </Button>
+          </Box>
+        </Container>
+      </Box>
     );
   }
 
@@ -157,8 +171,7 @@ export default function CheckoutPage() {
   );
   const deliveryFee =
     deliveryType === "delivery" ? restaurant.delivery_fee || 5.0 : 0;
-  const serviceFee = subtotal * 0.05; // Taxa de serviço de 5%
-  const total = subtotal + deliveryFee + serviceFee;
+  const total = subtotal + deliveryFee;
 
   const handleNext = () => {
     if (activeStep === steps.length - 1) {
@@ -474,78 +487,20 @@ export default function CheckoutPage() {
       >
         <FormControlLabel
           value="credit"
-          control={<Radio />}
-          label="Cartão de Crédito"
+          control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
+          label="Cartão"
         />
         <FormControlLabel
-          value="debit"
-          control={<Radio />}
-          label="Cartão de Débito"
+          value="pix"
+          control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
+          label="PIX"
         />
-        <FormControlLabel value="pix" control={<Radio />} label="PIX" />
         <FormControlLabel
           value="cash"
-          control={<Radio />}
+          control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
           label="Dinheiro na Entrega"
         />
       </RadioGroup>
-
-      {(paymentMethod.type === "credit" || paymentMethod.type === "debit") && (
-        <Box sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 2 }}>
-          <TextField
-            label="Nome no Cartão"
-            fullWidth
-            required
-            value={paymentMethod.name || ""}
-            onChange={(e) =>
-              setPaymentMethod({ ...paymentMethod, name: e.target.value })
-            }
-          />
-
-          <TextField
-            label="Número do Cartão"
-            fullWidth
-            required
-            placeholder="1234 5678 9012 3456"
-            value={paymentMethod.cardNumber || ""}
-            onChange={(e) =>
-              setPaymentMethod({ ...paymentMethod, cardNumber: e.target.value })
-            }
-          />
-
-          <Box
-            sx={{
-              display: "flex",
-              gap: 2,
-              flexDirection: { xs: "column", sm: "row" },
-            }}
-          >
-            <TextField
-              label="Data de Validade"
-              fullWidth
-              required
-              placeholder="MM/AA"
-              value={paymentMethod.expiryDate || ""}
-              onChange={(e) =>
-                setPaymentMethod({
-                  ...paymentMethod,
-                  expiryDate: e.target.value,
-                })
-              }
-            />
-            <TextField
-              label="CVV"
-              fullWidth
-              required
-              placeholder="123"
-              value={paymentMethod.cvv || ""}
-              onChange={(e) =>
-                setPaymentMethod({ ...paymentMethod, cvv: e.target.value })
-              }
-            />
-          </Box>
-        </Box>
-      )}
 
       {paymentMethod.type === "pix" && (
         <Alert severity="info" sx={{ mt: 2 }}>
@@ -590,10 +545,6 @@ export default function CheckoutPage() {
             <Typography>R$ {deliveryFee.toFixed(2)}</Typography>
           </Box>
         )}
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-          <Typography>Taxa de Serviço</Typography>
-          <Typography>R$ {serviceFee.toFixed(2)}</Typography>
-        </Box>
         <Divider sx={{ my: 1 }} />
         <Box sx={{ display: "flex", justifyContent: "space-between" }}>
           <Typography variant="h6" fontWeight="bold">
@@ -625,8 +576,7 @@ export default function CheckoutPage() {
           Forma de Pagamento:
         </Typography>
         <Typography variant="body2">
-          {paymentMethod.type === "credit" && "Cartão de Crédito"}
-          {paymentMethod.type === "debit" && "Cartão de Débito"}
+          {paymentMethod.type === "credit" && "Cartão"}
           {paymentMethod.type === "pix" && "PIX"}
           {paymentMethod.type === "cash" && "Dinheiro na Entrega"}
         </Typography>
@@ -745,15 +695,6 @@ export default function CheckoutPage() {
                   </Typography>
                 </Box>
               )}
-
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">Taxa de Serviço</Typography>
-                <Typography variant="body2">
-                  R$ {serviceFee.toFixed(2)}
-                </Typography>
-              </Box>
 
               <Divider sx={{ my: 1 }} />
 

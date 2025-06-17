@@ -21,12 +21,12 @@ export interface Product {
   price: number;
   image_url: string;
   category_id?: string;
-  add_categoriesId?: string;
+  add_categoriesId?: AdditionalCategory[];
 }
 // types/index.ts
 export interface CartRestaurant {
-  phone: string;
-  address: string;
+  phone?: string;
+  address?: string;
   id: string;
   name: string;
   logo_url?: string;
@@ -70,4 +70,29 @@ export interface PaymentMethod {
   expiryDate?: string;
   cvv?: string;
   name?: string;
+}
+
+// types/additionals.ts
+export interface AdditionalOption {
+  id: string;
+  name: string;
+  price: number;
+  created_at: string;
+  restaurant_id: string;
+  add_categories_id: string;
+}
+
+export interface AdditionalCategory {
+  id: string;
+  name: string;
+  restaurant_id: string;
+  created_at: string;
+  additional_options: AdditionalOption[];
+}
+
+export interface AdditionalsState {
+  categories: AdditionalCategory[];
+  loading: boolean;
+  error: string | null;
+  currentRestaurantId: string | null;
 }

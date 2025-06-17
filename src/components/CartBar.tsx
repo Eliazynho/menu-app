@@ -353,6 +353,9 @@ function CartBar({
               variant="contained"
               sx={{ mt: 2, backgroundColor: color }}
               onClick={() => router.push("/checkout")}
+              onClickCapture={() =>
+                console.log("Finalizando compra...", cartItems)
+              }
             >
               Finalizar Compra
             </Button>

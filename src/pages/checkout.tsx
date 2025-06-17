@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react"; // Importe useMemo
 import {
   Box,
   Container,
@@ -24,6 +24,7 @@ import {
   Collapse,
   useTheme,
   useMediaQuery,
+  CircularProgress,
 } from "@mui/material";
 import {
   LocationOn,
@@ -42,26 +43,20 @@ import Image from "next/image";
 import { useRouter } from "next/router";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/redux/reducers";
-import { CartItem } from "@/types";
+import { CartItem } from "@/types"; // Importe AdditionalCategory
 import {
   changeCartQuantity,
-  removeFromCart,
+  // Você precisará de uma action para atualizar a quantidade de adicional
+  // Ex: updateCartItemAdditionalQuantity
 } from "@/redux/actions/cartActions";
 
-// Preços dos adicionais
-const precoAdicionais: Record<string, number> = {
-  "Queijo extra": 3.0,
-  "Batata extra": 4.0,
-  "Molho especial": 2.5,
-  "Cebola caramelizada": 2.0,
-  "Molho barbecue": 2.0,
-  "Queijo cheddar": 3.0,
-  "Molho picante": 2.5,
-  "Molho extra": 2.0,
-  "Batata canoa": 4.0,
-  Bacon: 4.5,
-  "Queijo brie extra": 5.0,
-};
+// Estrutura para um adicional (assumindo que você terá um ID agora)
+interface AdditionalOption {
+  id: string;
+  name: string;
+  price: number;
+  // Outras propriedades do adicional, se houver
+}
 
 interface DeliveryAddress {
   street: string;
@@ -83,24 +78,29 @@ const steps = [
   "Confirmação",
 ];
 
-function calcularPrecoItem(item: CartItem): number {
-  const precoProduto = item.product.price;
-  const precoAdicionaisSomados = Object.entries(
-    item.additionalOptions || {}
-  ).reduce((acc, [nomeOpcao, quantidade]) => {
-    const precoOpcao = precoAdicionais[nomeOpcao] || 0;
-    return acc + precoOpcao * quantidade;
-  }, 0);
-  return (precoProduto + precoAdicionaisSomados) * item.quantity;
-}
-
 export default function CheckoutPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const router = useRouter();
   const dispatch = useDispatch();
 
+  // Obtém o estado do carrinho
   const { restaurant, items } = useSelector((state: RootState) => state.cart);
+
+  const additionalCategories = useSelector(
+    (state: RootState) => state.additionals.categories
+  );
+
+  // Isso garante que o mapa só seja reconstruído se as categorias mudarem
+  const flatAdditionals: Record<string, AdditionalOption> = useMemo(() => {
+    const map: Record<string, AdditionalOption> = {};
+    additionalCategories.forEach((category) => {
+      category.additional_options.forEach((option) => {
+        map[option.id] = option;
+      });
+    });
+    return map;
+  }, [additionalCategories]);
 
   const [activeStep, setActiveStep] = useState(0);
   const [deliveryType, setDeliveryType] = useState<"delivery" | "pickup">(
@@ -126,9 +126,30 @@ export default function CheckoutPage() {
 
   // Estados para observações e tempo estimado
   const [observations, setObservations] = useState("");
-  const [estimatedTime, setEstimatedTime] = useState("30-45 min");
+  const [estimatedTime, setEstimatedTime] = useState("30-45 min"); // Pode vir do restaurante ou ser calculado
 
   const color = restaurant?.color || "#ff0000";
+
+  // Função para calcular o preço do item (agora usando o mapa flatAdditionals construído das categorias)
+  function calcularPrecoItem(item: CartItem): number {
+    const precoProduto = item.product.price;
+    const precoAdicionaisSomados = Object.entries(
+      item.additionalOptions || {}
+    ).reduce((acc, [additionalId, quantidade]) => {
+      // Usa o mapa flatAdditionals construído a partir dos dados reais das categorias
+      const additional = flatAdditionals[additionalId];
+      if (!additional) {
+        // Este aviso agora indica que um adicional no carrinho não foi encontrado
+        // na lista de adicionais carregada (situação incomum, pode indicar erro de dados)
+        console.warn(
+          `Adicional com ID ${additionalId} não encontrado na lista de adicionais carregada.`
+        );
+        return acc; // Se não encontrar, não adiciona ao preço (ou trate como erro)
+      }
+      return acc + additional.price * quantidade;
+    }, 0);
+    return (precoProduto + precoAdicionaisSomados) * item.quantity;
+  }
 
   if (!restaurant || items.length === 0) {
     return (
@@ -169,51 +190,65 @@ export default function CheckoutPage() {
     (acc, item) => acc + calcularPrecoItem(item),
     0
   );
+
   const deliveryFee =
     deliveryType === "delivery" ? restaurant.delivery_fee || 5.0 : 0;
   const total = subtotal + deliveryFee;
 
+  // Função para incrementar a quantidade de um adicional
+  const incrementAdditional = (itemIndex: number, additionalId: string) => {
+    // *** IMPORTANTE: Substitua esta lógica de simulação pela sua action Redux real ***
+    console.log(
+      `Simulando: Incrementar adicional ${additionalId} no item ${itemIndex}`
+    );
+    // Exemplo (assumindo que você tem uma action updateCartItemAdditionalQuantity):
+    // dispatch(updateCartItemAdditionalQuantity(itemIndex, additionalId, currentQuantity + 1));
+    // Lembre-se de que a action deve atualizar o estado Redux, que por sua vez
+    // acionará a re-renderização e a atualização dos cálculos.
+  };
+
+  // Função para decrementar a quantidade de um adicional
+  const decrementAdditional = (itemIndex: number, additionalId: string) => {
+    // *** IMPORTANTE: Substitua esta lógica de simulação pela sua action Redux real ***
+    console.log(
+      `Simulando: Decrementar adicional ${additionalId} no item ${itemIndex}`
+    );
+    // Exemplo (assumindo que você tem uma action updateCartItemAdditionalQuantity):
+    // const currentQuantity = items[itemIndex].additionalOptions?.[additionalId] || 0;
+    // if (currentQuantity > 0) {
+    //   dispatch(updateCartItemAdditionalQuantity(itemIndex, additionalId, currentQuantity - 1));
+    // }
+    // Lembre-se de que a action deve atualizar o estado Redux, que por sua vez
+    // acionará a re-renderização e a atualização dos cálculos.
+  };
+
   const handleNext = () => {
     if (activeStep === steps.length - 1) {
-      handleFinishOrder();
+      // Lógica de finalização do pedido
+      setLoading(true);
+      console.log("Finalizando pedido...");
+      console.log("Itens:", items);
+      console.log("Tipo de entrega:", deliveryType);
+      if (deliveryType === "delivery") {
+        console.log("Endereço:", address);
+      }
+      console.log("Pagamento:", paymentMethod);
+      console.log("Observações:", observations);
+      console.log("Total:", total);
+
+      // Simula envio para API
+      setTimeout(() => {
+        setLoading(false);
+        // Redirecionar para tela de confirmação/status do pedido
+        router.push("/order-status"); // Exemplo
+      }, 2000);
     } else {
-      setActiveStep((prev) => prev + 1);
+      setActiveStep((prevActiveStep) => prevActiveStep + 1);
     }
   };
 
   const handleBack = () => {
-    setActiveStep((prev) => prev - 1);
-  };
-
-  const handleFinishOrder = async () => {
-    setLoading(true);
-    // Simular chamada da API
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // Aqui você faria a chamada real para sua API
-    const orderData = {
-      restaurant: restaurant.id,
-      items,
-      deliveryType,
-      address: deliveryType === "delivery" ? address : null,
-      paymentMethod,
-      observations,
-      total,
-    };
-
-    console.log("Pedido enviado:", orderData);
-    setLoading(false);
-
-    // Redirecionar para página de sucesso
-    router.push("/order-success");
-  };
-
-  const updateQuantity = (index: number, newQuantity: number) => {
-    if (newQuantity === 0) {
-      dispatch(removeFromCart(index));
-    } else {
-      dispatch(changeCartQuantity(index, newQuantity));
-    }
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
   const renderOrderReview = () => (
@@ -221,158 +256,180 @@ export default function CheckoutPage() {
       elevation={0}
       sx={{ p: 3, border: "1px solid", borderColor: "divider" }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-        <Avatar
-          src={restaurant.logo_url}
-          sx={{ width: 60, height: 60, mr: 2 }}
-        />
-        <Box>
-          <Typography variant="h6" fontWeight="bold">
-            {restaurant.name}
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-            <AccessTime sx={{ fontSize: 16, mr: 0.5, color: color }} />
-            <Typography variant="body2" color={color}>
-              {estimatedTime}
-            </Typography>
-          </Box>
-        </Box>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 2,
+        }}
+      >
+        <Typography variant="h6" fontWeight="bold">
+          Itens do Pedido
+        </Typography>
+        <Button size="small" onClick={() => setExpandedItems(!expandedItems)}>
+          {expandedItems ? <ExpandLess /> : <ExpandMore />}
+          {expandedItems ? "Ocultar" : "Mostrar"}
+        </Button>
       </Box>
+      <Collapse in={expandedItems}>
+        {items.map((item: CartItem, index: number) => {
+          // Busca o produto completo para ter a imagem, nome, etc.
+          // Assumindo que item.product já tem todos os detalhes necessários
+          const product = item.product;
 
-      <Box sx={{ mb: 3 }}>
-        <RadioGroup
-          value={deliveryType}
-          onChange={(e) =>
-            setDeliveryType(e.target.value as "delivery" | "pickup")
-          }
-          row
-        >
-          <FormControlLabel
-            value="delivery"
-            control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
-            label={
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <LocalShipping sx={{ mr: 1 }} />
-                Entrega
-              </Box>
-            }
-          />
-          <FormControlLabel
-            value="pickup"
-            control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
-            label={
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <Store sx={{ mr: 1 }} />
-                Retirada
-              </Box>
-            }
-          />
-        </RadioGroup>
-      </Box>
-
-      <Box sx={{ mb: 2 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            cursor: "pointer",
-          }}
-          onClick={() => setExpandedItems(!expandedItems)}
-        >
-          <Typography variant="h6">Seus Itens ({items.length})</Typography>
-          <IconButton>
-            {expandedItems ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Box>
-
-        <Collapse in={expandedItems}>
-          <Box sx={{ mt: 2 }}>
-            {items.map((item, index) => (
-              <Card key={index} sx={{ mb: 2 }}>
-                <CardContent sx={{ p: 2 }}>
-                  <Box sx={{ display: "flex", gap: 2 }}>
+          return (
+            <Box
+              key={index} // Considere usar um ID único do item do carrinho se disponível
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                mb: 3,
+                borderBottom: "1px solid #eee",
+                pb: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                }}
+              >
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  {product.image_url && (
                     <Image
-                      src={item.product.image_url}
-                      alt={item.product.name}
+                      src={product.image_url}
+                      alt={product.name || "Produto"}
                       width={60}
                       height={60}
                       style={{ borderRadius: 8, objectFit: "cover" }}
                     />
-                    <Box sx={{ flex: 1 }}>
-                      <Typography fontWeight="bold">
-                        {item.product.name}
-                      </Typography>
+                  )}
+                  <Box>
+                    <Typography fontWeight="bold">{product.name}</Typography>
+                    {/* Renderiza componentes/descrição se houver */}
+                  </Box>
+                </Box>
+                {/* Botão de remover item inteiro (opcional no checkout review) */}
+                {/* <IconButton onClick={() => dispatch(removeFromCart(index))} size="small">
+                    <CloseIcon color="error" />
+                  </IconButton> */}
+              </Box>
 
-                      {/* Adicionais */}
-                      {Object.entries(item.additionalOptions || {}).length >
-                        0 && (
-                        <Box sx={{ mt: 1 }}>
-                          {Object.entries(item.additionalOptions).map(
-                            ([option, qty]) => (
-                              <Chip
-                                key={option}
-                                label={`${option} x${qty}`}
-                                size="small"
-                                sx={{ mr: 0.5, mb: 0.5 }}
-                              />
-                            )
-                          )}
-                        </Box>
-                      )}
+              {/* Adicionais do item */}
+              <Box sx={{ mt: 1, mb: 1, pl: 8 }}>
+                {" "}
+                {/* Adiciona padding para alinhar com a imagem */}
+                {Object.entries(item.additionalOptions || {}).map(
+                  ([additionalId, qty]) => {
+                    // Busca o objeto adicional usando o ID no mapa flatAdditionals
+                    const additional = flatAdditionals[additionalId];
 
+                    // Não renderiza se o adicional não for encontrado (deve ser raro com o mapa correto)
+                    if (!additional) return null;
+
+                    return (
                       <Box
+                        key={additionalId} // Usar o ID do adicional como key
                         sx={{
                           display: "flex",
-                          justifyContent: "space-between",
                           alignItems: "center",
-                          mt: 2,
+                          justifyContent: "space-between",
+                          mb: 0.5,
+                          gap: 1,
                         }}
                       >
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              updateQuantity(index, item.quantity - 1)
-                            }
-                          >
-                            <Remove />
-                          </IconButton>
-                          <Typography sx={{ mx: 1 }}>
-                            {item.quantity}
-                          </Typography>
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              updateQuantity(index, item.quantity + 1)
-                            }
-                          >
-                            <Add />
-                          </IconButton>
-                        </Box>
-                        <Typography fontWeight="bold">
-                          R$ {calcularPrecoItem(item).toFixed(2)}
+                        <Typography sx={{ fontSize: 14 }}>
+                          {additional.name} x{qty} ( R$
+                          {(additional.price * qty).toFixed(2)})
                         </Typography>
                       </Box>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
-        </Collapse>
+                    );
+                  }
+                )}
+              </Box>
+
+              {/* Controles de quantidade do produto principal e preço total do item */}
+              <Box
+                sx={{
+                  mt: 1,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  pl: 8, // Adiciona padding para alinhar com a imagem
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <IconButton
+                    size="small"
+                    onClick={() =>
+                      dispatch(changeCartQuantity(index, item.quantity - 1))
+                    }
+                    disabled={item.quantity <= 1} // Desabilita se a quantidade for 1 ou menos
+                  >
+                    <Remove />
+                  </IconButton>
+                  <Typography>{item.quantity}</Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() =>
+                      dispatch(changeCartQuantity(index, item.quantity + 1))
+                    }
+                  >
+                    <Add />
+                  </IconButton>
+                </Box>
+                <Typography fontWeight="bold">
+                  R$ {calcularPrecoItem(item).toFixed(2)}{" "}
+                  {/* Já calcula o total do item */}
+                </Typography>
+              </Box>
+            </Box>
+          );
+        })}
+      </Collapse>
+
+      <Divider sx={{ my: 2 }} />
+
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+          Tipo de Entrega
+        </Typography>
+        <RadioGroup
+          row
+          value={deliveryType}
+          onChange={(e) =>
+            setDeliveryType(e.target.value as "delivery" | "pickup")
+          }
+        >
+          <FormControlLabel
+            value="delivery"
+            control={<Radio />}
+            label="Entrega"
+          />
+          <FormControlLabel
+            value="pickup"
+            control={<Radio />}
+            label="Retirada no Local"
+          />
+        </RadioGroup>
       </Box>
 
-      <TextField
-        label="Observações (opcional)"
-        multiline
-        rows={3}
-        fullWidth
-        value={observations}
-        onChange={(e) => setObservations(e.target.value)}
-        placeholder="Alguma observação sobre seu pedido?"
-        sx={{ mb: 3 }}
-      />
+      <Box>
+        <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+          Observações
+        </Typography>
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          variant="outlined"
+          placeholder="Adicione alguma observação ao seu pedido..."
+          value={observations}
+          onChange={(e) => setObservations(e.target.value)}
+        />
+      </Box>
     </Paper>
   );
 
@@ -381,91 +438,64 @@ export default function CheckoutPage() {
       elevation={0}
       sx={{ p: 3, border: "1px solid", borderColor: "divider" }}
     >
-      <Typography variant="h6" sx={{ mb: 3 }}>
-        <LocationOn sx={{ mr: 1, verticalAlign: "middle" }} />
+      <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
         Endereço de Entrega
       </Typography>
-
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box
-          sx={{
-            display: "flex",
-            gap: 2,
-            flexDirection: { xs: "column", sm: "row" },
-          }}
-        >
-          <TextField
-            label="Rua"
-            fullWidth
-            required
-            value={address.street}
-            onChange={(e) => setAddress({ ...address, street: e.target.value })}
-            sx={{ flex: 2 }}
-          />
-          <TextField
-            label="Número"
-            fullWidth
-            required
-            value={address.number}
-            onChange={(e) => setAddress({ ...address, number: e.target.value })}
-            sx={{ flex: 1 }}
-          />
-        </Box>
-
-        <TextField
-          label="Complemento (opcional)"
-          fullWidth
-          value={address.complement}
-          onChange={(e) =>
-            setAddress({ ...address, complement: e.target.value })
-          }
-        />
-
-        <Box
-          sx={{
-            display: "flex",
-            gap: 2,
-            flexDirection: { xs: "column", sm: "row" },
-          }}
-        >
-          <TextField
-            label="Bairro"
-            fullWidth
-            required
-            value={address.neighborhood}
-            onChange={(e) =>
-              setAddress({ ...address, neighborhood: e.target.value })
-            }
-          />
-          <TextField
-            label="Cidade"
-            fullWidth
-            required
-            value={address.city}
-            onChange={(e) => setAddress({ ...address, city: e.target.value })}
-          />
-        </Box>
-
-        <Box
-          sx={{
-            display: "flex",
-            gap: 2,
-            flexDirection: { xs: "column", sm: "row" },
-          }}
-        >
-          <TextField
-            label="CEP"
-            fullWidth
-            required
-            value={address.zipCode}
-            onChange={(e) =>
-              setAddress({ ...address, zipCode: e.target.value })
-            }
-            sx={{ flex: 1 }}
-          />
-          <Box sx={{ flex: 1 }} /> {/* Espaço vazio para balanceamento */}
-        </Box>
-      </Box>
+      <TextField
+        fullWidth
+        label="Rua"
+        variant="outlined"
+        margin="normal"
+        value={address.street}
+        onChange={(e) => setAddress({ ...address, street: e.target.value })}
+        required
+      />
+      <TextField
+        fullWidth
+        label="Número"
+        variant="outlined"
+        margin="normal"
+        value={address.number}
+        onChange={(e) => setAddress({ ...address, number: e.target.value })}
+        required
+      />
+      <TextField
+        fullWidth
+        label="Complemento (Opcional)"
+        variant="outlined"
+        margin="normal"
+        value={address.complement}
+        onChange={(e) => setAddress({ ...address, complement: e.target.value })}
+      />
+      <TextField
+        fullWidth
+        label="Bairro"
+        variant="outlined"
+        margin="normal"
+        value={address.neighborhood}
+        onChange={(e) =>
+          setAddress({ ...address, neighborhood: e.target.value })
+        }
+        required
+      />
+      <TextField
+        fullWidth
+        label="Cidade"
+        variant="outlined"
+        margin="normal"
+        value={address.city}
+        onChange={(e) => setAddress({ ...address, city: e.target.value })}
+        required
+      />
+      <TextField
+        fullWidth
+        label="CEP"
+        variant="outlined"
+        margin="normal"
+        value={address.zipCode}
+        onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
+        required
+      />
     </Paper>
   );
 
@@ -474,44 +504,52 @@ export default function CheckoutPage() {
       elevation={0}
       sx={{ p: 3, border: "1px solid", borderColor: "divider" }}
     >
-      <Typography variant="h6" sx={{ mb: 3 }}>
-        <CreditCard sx={{ mr: 1, verticalAlign: "middle" }} />
+      <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
         Forma de Pagamento
       </Typography>
-
       <RadioGroup
         value={paymentMethod.type}
         onChange={(e) =>
-          setPaymentMethod({ ...paymentMethod, type: e.target.value as any })
+          setPaymentMethod({ type: e.target.value as PaymentMethod["type"] })
         }
       >
         <FormControlLabel
           value="credit"
-          control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
-          label="Cartão"
+          control={<Radio />}
+          label={
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <CreditCard sx={{ mr: 1 }} /> Cartão de Crédito/Débito
+            </Box>
+          }
         />
         <FormControlLabel
           value="pix"
-          control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
-          label="PIX"
+          control={<Radio />}
+          label={
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              {/* Ícone de PIX, se tiver */} PIX
+            </Box>
+          }
         />
         <FormControlLabel
           value="cash"
-          control={<Radio sx={{ "&.Mui-checked": { color: color } }} />}
-          label="Dinheiro na Entrega"
+          control={<Radio />}
+          label={
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              {/* Ícone de Dinheiro, se tiver */} Dinheiro na Entrega
+            </Box>
+          }
         />
       </RadioGroup>
-
-      {paymentMethod.type === "pix" && (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          Você receberá o código PIX após confirmar o pedido.
-        </Alert>
-      )}
-
+      {/* Adicionar campos específicos para cada método, se necessário (ex: troco para dinheiro) */}
       {paymentMethod.type === "cash" && (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          Pagamento será realizado na entrega.
-        </Alert>
+        <TextField
+          fullWidth
+          label="Precisa de troco para quanto?"
+          variant="outlined"
+          margin="normal"
+          placeholder="Ex: Preciso de troco para R$ 50,00"
+        />
       )}
     </Paper>
   );
@@ -619,14 +657,13 @@ export default function CheckoutPage() {
           startIcon={<ArrowBack />}
           onClick={() => router.back()}
           sx={{ mb: 2 }}
+          disabled={loading}
         >
           Voltar
         </Button>
-
         <Typography variant="h4" fontWeight="bold" sx={{ mb: 2 }}>
           Finalizar Pedido
         </Typography>
-
         <Stepper
           activeStep={activeStep}
           orientation={isMobile ? "vertical" : "horizontal"}
@@ -670,7 +707,6 @@ export default function CheckoutPage() {
             <Typography variant="h6" sx={{ mb: 2 }}>
               Resumo
             </Typography>
-
             <Box sx={{ mb: 2 }}>
               <Box
                 sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
@@ -680,7 +716,6 @@ export default function CheckoutPage() {
                   R$ {subtotal.toFixed(2)}
                 </Typography>
               </Box>
-
               {deliveryType === "delivery" && (
                 <Box
                   sx={{
@@ -695,9 +730,7 @@ export default function CheckoutPage() {
                   </Typography>
                 </Box>
               )}
-
               <Divider sx={{ my: 1 }} />
-
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                 <Typography variant="h6" fontWeight="bold">
                   Total
@@ -716,29 +749,45 @@ export default function CheckoutPage() {
               }}
             >
               {activeStep > 0 && (
-                <Button variant="outlined" onClick={handleBack} fullWidth>
+                <Button
+                  variant="outlined"
+                  onClick={handleBack}
+                  fullWidth
+                  disabled={loading}
+                >
                   Voltar
                 </Button>
               )}
-
               <Button
                 variant="contained"
                 onClick={handleNext}
-                disabled={loading}
+                disabled={
+                  loading ||
+                  (activeStep === 1 &&
+                    deliveryType === "delivery" &&
+                    (!address.street ||
+                      !address.number ||
+                      !address.neighborhood ||
+                      !address.city ||
+                      !address.zipCode)) ||
+                  (activeStep === 0 && items.length === 0) // Desabilita botão "Continuar" se carrinho vazio na revisão
+                }
                 fullWidth
                 size="large"
                 sx={{
-                  bgcolor: restaurant.color || "primary.main",
+                  bgcolor: restaurant?.color || "primary.main", // Usa a cor do restaurante
                   "&:hover": {
-                    bgcolor: restaurant.color || "primary.dark",
+                    bgcolor: restaurant?.color || "primary.dark", // Usa a cor do restaurante
                   },
                 }}
               >
-                {loading
-                  ? "Processando..."
-                  : activeStep === steps.length - 1
-                  ? "Finalizar Pedido"
-                  : "Continuar"}
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : activeStep === steps.length - 1 ? (
+                  "Finalizar Pedido"
+                ) : (
+                  "Continuar"
+                )}
               </Button>
             </Box>
           </Paper>

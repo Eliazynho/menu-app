@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useMemo } from "react"; // Importe useMemo
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Box,
   Container,
@@ -25,6 +25,7 @@ import {
   useTheme,
   useMediaQuery,
   CircularProgress,
+  Modal,
 } from "@mui/material";
 import {
   LocationOn,
@@ -38,17 +39,23 @@ import {
   ArrowBack,
   Add,
   Remove,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/redux/reducers";
-import { CartItem } from "@/types"; // Importe AdditionalCategory
+import { CartItem, userCreate } from "@/types";
 import {
   changeCartQuantity,
   // Você precisará de uma action para atualizar a quantidade de adicional
   // Ex: updateCartItemAdditionalQuantity
 } from "@/redux/actions/cartActions";
+
+// Importe o componente LoginModal
+import LoginModal from "@/components/ModalLogin"; // Ajuste o caminho conforme a localização do seu arquivo
+import { LOGIN_SUCCESS } from "@/redux/actions/authActions";
+import { createClient } from "./api/auth";
 
 // Estrutura para um adicional (assumindo que você terá um ID agora)
 interface AdditionalOption {
@@ -84,12 +91,18 @@ export default function CheckoutPage() {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  // Obtém o estado do carrinho
+  // Obtém o estado do carrinho e adicionais do Redux
   const { restaurant, items } = useSelector((state: RootState) => state.cart);
-
   const additionalCategories = useSelector(
     (state: RootState) => state.additionals.categories
   );
+
+  // *** ESTADOS LOCAIS PARA SIMULAR O LOGIN (APENAS PARA TESTE) ***
+  // Inicialize isLoggedIn como false para que o modal abra na carga
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState<string>("");
+  const [userPhone, setUserPhone] = useState<string>("");
+  // *** FIM ESTADOS LOCAIS PARA SIMULAR O LOGIN ***
 
   // Isso garante que o mapa só seja reconstruído se as categorias mudarem
   const flatAdditionals: Record<string, AdditionalOption> = useMemo(() => {
@@ -109,7 +122,13 @@ export default function CheckoutPage() {
   const [expandedItems, setExpandedItems] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  // Estados para endereço
+  // Estado para controlar a visibilidade do modal de login
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  // Estado para garantir que o modal só abra automaticamente uma vez ao carregar
+  const [hasShownLoginModalOnLoad, setHasShownLoginModalOnLoad] =
+    useState(false);
+
+  // Estados para endereço (inicialize com dados do usuário logado se disponíveis)
   const [address, setAddress] = useState<DeliveryAddress>({
     street: "",
     number: "",
@@ -117,6 +136,9 @@ export default function CheckoutPage() {
     neighborhood: "",
     city: "",
     zipCode: "",
+    // Você pode inicializar com dados do usuário logado aqui se tiver
+    // street: userAddress?.street || "",
+    // ...
   });
 
   // Estados para pagamento
@@ -129,6 +151,15 @@ export default function CheckoutPage() {
   const [estimatedTime, setEstimatedTime] = useState("30-45 min"); // Pode vir do restaurante ou ser calculado
 
   const color = restaurant?.color || "#ff0000";
+
+  // Efeito para abrir o modal de login assim que a página carregar, se o usuário não estiver logado
+  useEffect(() => {
+    // Só abre o modal se o usuário NÃO estiver logado E ainda não tivermos tentado mostrar na carga
+    if (!isLoggedIn && !hasShownLoginModalOnLoad) {
+      setIsLoginModalOpen(true);
+      setHasShownLoginModalOnLoad(true); // Marca que já tentamos mostrar
+    }
+  }, [isLoggedIn, hasShownLoginModalOnLoad]); // Depende do estado de login local e da flag
 
   // Função para calcular o preço do item (agora usando o mapa flatAdditionals construído das categorias)
   function calcularPrecoItem(item: CartItem): number {
@@ -150,6 +181,70 @@ export default function CheckoutPage() {
     }, 0);
     return (precoProduto + precoAdicionaisSomados) * item.quantity;
   }
+
+  // Função para lidar com o "login" bem-sucedido no modal (APENAS PARA TESTE)
+  const handleUserLogin = async (
+    name: string,
+    phone: string,
+    restaurant_id: string
+  ) => {
+    console.log("Simulando login/cadastro com:", { name, phone });
+
+    // ✅ Remova o set de estado local para nome e telefone, pois o Redux vai gerenciar
+    // setUserName(name); // REMOVER
+    // setUserPhone(phone); // REMOVER
+
+    const data: userCreate = { name, phone, restaurant_id };
+
+    if (name !== "" && phone !== "") {
+      try {
+        const res = await createClient(data); // Assuma que res contém os dados do usuário logado/criado
+
+        // ✅ Verifique se a API retornou os dados do usuário esperados
+        // A estrutura exata de 'res' depende da sua API.
+        // Exemplo: Se a API retorna { success: true, user: { id: '...', name: '...', phone: '...' } }
+        if (res && res.client) {
+          // Ajuste esta condição conforme a resposta real da sua API
+          console.log("Usuário criado/logado com sucesso:", res.client);
+          // ✅ Dispara a action LOGIN_SUCCESS com os dados do usuário como payload
+          dispatch({
+            type: LOGIN_SUCCESS,
+            payload: res,
+          });
+
+          // ✅ Remove o set de estado local de login, pois agora é gerenciado pelo Redux
+          setIsLoggedIn(true); // REMOVER
+          localStorage.setItem("token", JSON.stringify(res.token));
+
+          // ✅ Mantém o set de estado local para fechar o modal, se o modal for local
+          setIsLoginModalOpen(false);
+
+          // Opcional: Você pode querer armazenar o ID do usuário ou outros dados localmente
+          // (ex: localStorage) se precisar persistir o login entre sessões,
+          // mas o estado principal de login e dados do usuário está no Redux.
+        } else {
+          console.error("Erro ou resposta inesperada da API:", res);
+          // Opcional: Tratar erro (ex: exibir mensagem para o usuário)
+          // Você pode ter uma action LOGIN_FAIL para isso
+        }
+      } catch (error: any) {
+        console.error("Erro na chamada da API createClient:", error);
+        // Opcional: Tratar erro (ex: exibir mensagem para o usuário)
+        // Você pode ter uma action LOGIN_FAIL para isso
+      }
+    } else {
+      console.warn("Nome e telefone não podem ser vazios.");
+      // Opcional: Tratar erro (ex: exibir mensagem para o usuário)
+    }
+  };
+
+  // Função para fechar o modal de login
+  const handleCloseLoginModal = () => {
+    setIsLoginModalOpen(false);
+    // Opcional: Se quiser forçar o login, você pode redirecionar o usuário
+    // ou mostrar uma mensagem aqui se o usuário fechar sem logar.
+    // router.push('/'); // Exemplo: redirecionar para a home
+  };
 
   if (!restaurant || items.length === 0) {
     return (
@@ -190,59 +285,41 @@ export default function CheckoutPage() {
     (acc, item) => acc + calcularPrecoItem(item),
     0
   );
-
   const deliveryFee =
-    deliveryType === "delivery" ? restaurant.delivery_fee || 5.0 : 0;
+    deliveryType === "delivery" ? restaurant?.delivery_fee || 0 : 0; // Assumindo que a taxa de entrega está no objeto do restaurante
   const total = subtotal + deliveryFee;
 
-  // Função para incrementar a quantidade de um adicional
-  const incrementAdditional = (itemIndex: number, additionalId: string) => {
-    // *** IMPORTANTE: Substitua esta lógica de simulação pela sua action Redux real ***
-    console.log(
-      `Simulando: Incrementar adicional ${additionalId} no item ${itemIndex}`
-    );
-    // Exemplo (assumindo que você tem uma action updateCartItemAdditionalQuantity):
-    // dispatch(updateCartItemAdditionalQuantity(itemIndex, additionalId, currentQuantity + 1));
-    // Lembre-se de que a action deve atualizar o estado Redux, que por sua vez
-    // acionará a re-renderização e a atualização dos cálculos.
-  };
-
-  // Função para decrementar a quantidade de um adicional
-  const decrementAdditional = (itemIndex: number, additionalId: string) => {
-    // *** IMPORTANTE: Substitua esta lógica de simulação pela sua action Redux real ***
-    console.log(
-      `Simulando: Decrementar adicional ${additionalId} no item ${itemIndex}`
-    );
-    // Exemplo (assumindo que você tem uma action updateCartItemAdditionalQuantity):
-    // const currentQuantity = items[itemIndex].additionalOptions?.[additionalId] || 0;
-    // if (currentQuantity > 0) {
-    //   dispatch(updateCartItemAdditionalQuantity(itemIndex, additionalId, currentQuantity - 1));
-    // }
-    // Lembre-se de que a action deve atualizar o estado Redux, que por sua vez
-    // acionará a re-renderização e a atualização dos cálculos.
-  };
-
   const handleNext = () => {
+    // Se o usuário não estiver logado e não for o último passo (confirmação),
+    // force a abertura do modal de login e não avance.
+    if (!isLoggedIn && activeStep < steps.length - 1) {
+      setIsLoginModalOpen(true);
+      return; // Não avança
+    }
+
     if (activeStep === steps.length - 1) {
-      // Lógica de finalização do pedido
+      // Último passo: Finalizar Pedido
       setLoading(true);
-      console.log("Finalizando pedido...");
+      // *** Lógica de envio do pedido para o backend ***
+      console.log("Finalizando Pedido...");
       console.log("Itens:", items);
-      console.log("Tipo de entrega:", deliveryType);
-      if (deliveryType === "delivery") {
-        console.log("Endereço:", address);
-      }
-      console.log("Pagamento:", paymentMethod);
+      console.log("Tipo de Entrega:", deliveryType);
+      console.log("Endereço:", address);
+      console.log("Método de Pagamento:", paymentMethod);
       console.log("Observações:", observations);
+      console.log("Nome do Usuário:", userName); // Usando estado local
+      console.log("Telefone do Usuário:", userPhone); // Usando estado local
       console.log("Total:", total);
 
-      // Simula envio para API
+      // Simule um delay para o envio
       setTimeout(() => {
         setLoading(false);
-        // Redirecionar para tela de confirmação/status do pedido
-        router.push("/order-status"); // Exemplo
+        // Redirecionar para uma página de sucesso ou mostrar confirmação final
+        alert("Pedido Finalizado! (Simulação)");
+        // router.push('/order-success'); // Exemplo
       }, 2000);
     } else {
+      // Avança para o próximo passo
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
     }
   };
@@ -251,150 +328,47 @@ export default function CheckoutPage() {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
+  const handleQuantityChange = (itemId: string, newQuantity: number) => {
+    // Encontrar o índice do item no array 'items' do carrinho
+    const itemIndex = items.findIndex((item) => item.product.id === itemId);
+
+    // Verificar se o item foi encontrado
+    if (itemIndex === -1) {
+      console.warn(`Item com ID ${itemId} não encontrado no carrinho.`);
+      return; // Sair da função se o item não for encontrado
+    }
+
+    if (newQuantity <= 0) {
+      // Opcional: remover item se a quantidade for 0 ou menos
+      // Você precisaria de uma action para remover por index ou id
+      // Ex: dispatch(removeItemFromCart(itemIndex)); // Se a action remove por index
+      // Ou dispatch(removeItemFromCart(itemId)); // Se a action remove por id
+      // Por enquanto, vamos apenas não permitir quantidade <= 0
+      console.warn("Quantidade não pode ser menor ou igual a zero.");
+      return;
+    } else {
+      // Chamar a action creator com o index e a nova quantidade
+      dispatch(changeCartQuantity(itemIndex, newQuantity));
+    }
+  };
+
+  // Você precisará de uma função para lidar com a mudança de quantidade de adicional,
+  // similar a handleQuantityChange, mas que atualize o additionalOptions do item no Redux.
+  // Ex: handleAdditionalQuantityChange = (itemId: string, additionalId: string, newQuantity: number) => { ... }
+
   const renderOrderReview = () => (
     <Paper
       elevation={0}
       sx={{ p: 3, border: "1px solid", borderColor: "divider" }}
     >
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 2,
-        }}
-      >
-        <Typography variant="h6" fontWeight="bold">
-          Itens do Pedido
-        </Typography>
-        <Button size="small" onClick={() => setExpandedItems(!expandedItems)}>
-          {expandedItems ? <ExpandLess /> : <ExpandMore />}
-          {expandedItems ? "Ocultar" : "Mostrar"}
-        </Button>
-      </Box>
-      <Collapse in={expandedItems}>
-        {items.map((item: CartItem, index: number) => {
-          // Busca o produto completo para ter a imagem, nome, etc.
-          // Assumindo que item.product já tem todos os detalhes necessários
-          const product = item.product;
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Revisão do Pedido
+      </Typography>
 
-          return (
-            <Box
-              key={index} // Considere usar um ID único do item do carrinho se disponível
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                mb: 3,
-                borderBottom: "1px solid #eee",
-                pb: 2,
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                }}
-              >
-                <Box sx={{ display: "flex", gap: 2 }}>
-                  {product.image_url && (
-                    <Image
-                      src={product.image_url}
-                      alt={product.name || "Produto"}
-                      width={60}
-                      height={60}
-                      style={{ borderRadius: 8, objectFit: "cover" }}
-                    />
-                  )}
-                  <Box>
-                    <Typography fontWeight="bold">{product.name}</Typography>
-                    {/* Renderiza componentes/descrição se houver */}
-                  </Box>
-                </Box>
-                {/* Botão de remover item inteiro (opcional no checkout review) */}
-                {/* <IconButton onClick={() => dispatch(removeFromCart(index))} size="small">
-                    <CloseIcon color="error" />
-                  </IconButton> */}
-              </Box>
-
-              {/* Adicionais do item */}
-              <Box sx={{ mt: 1, mb: 1, pl: 8 }}>
-                {" "}
-                {/* Adiciona padding para alinhar com a imagem */}
-                {Object.entries(item.additionalOptions || {}).map(
-                  ([additionalId, qty]) => {
-                    // Busca o objeto adicional usando o ID no mapa flatAdditionals
-                    const additional = flatAdditionals[additionalId];
-
-                    // Não renderiza se o adicional não for encontrado (deve ser raro com o mapa correto)
-                    if (!additional) return null;
-
-                    return (
-                      <Box
-                        key={additionalId} // Usar o ID do adicional como key
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          mb: 0.5,
-                          gap: 1,
-                        }}
-                      >
-                        <Typography sx={{ fontSize: 14 }}>
-                          {additional.name} x{qty} ( R$
-                          {(additional.price * qty).toFixed(2)})
-                        </Typography>
-                      </Box>
-                    );
-                  }
-                )}
-              </Box>
-
-              {/* Controles de quantidade do produto principal e preço total do item */}
-              <Box
-                sx={{
-                  mt: 1,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  pl: 8, // Adiciona padding para alinhar com a imagem
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <IconButton
-                    size="small"
-                    onClick={() =>
-                      dispatch(changeCartQuantity(index, item.quantity - 1))
-                    }
-                    disabled={item.quantity <= 1} // Desabilita se a quantidade for 1 ou menos
-                  >
-                    <Remove />
-                  </IconButton>
-                  <Typography>{item.quantity}</Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() =>
-                      dispatch(changeCartQuantity(index, item.quantity + 1))
-                    }
-                  >
-                    <Add />
-                  </IconButton>
-                </Box>
-                <Typography fontWeight="bold">
-                  R$ {calcularPrecoItem(item).toFixed(2)}{" "}
-                  {/* Já calcula o total do item */}
-                </Typography>
-              </Box>
-            </Box>
-          );
-        })}
-      </Collapse>
-
-      <Divider sx={{ my: 2 }} />
-
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
-          Tipo de Entrega
+      {/* Tipo de Entrega */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
+          Como você quer receber seu pedido?
         </Typography>
         <RadioGroup
           row
@@ -405,29 +379,125 @@ export default function CheckoutPage() {
         >
           <FormControlLabel
             value="delivery"
-            control={<Radio />}
+            control={<Radio size="small" />}
             label="Entrega"
           />
           <FormControlLabel
             value="pickup"
-            control={<Radio />}
+            control={<Radio size="small" />}
             label="Retirada no Local"
           />
         </RadioGroup>
       </Box>
 
-      <Box>
-        <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+      {/* Itens do Pedido */}
+      <Box sx={{ mb: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+            mb: 1,
+          }}
+          onClick={() => setExpandedItems(!expandedItems)}
+        >
+          <Typography variant="subtitle1" fontWeight="bold">
+            Itens ({items.length})
+          </Typography>
+          {expandedItems ? <ExpandLess /> : <ExpandMore />}
+        </Box>
+        <Collapse in={expandedItems}>
+          {items.map((item) => (
+            <Box
+              key={item.product.id}
+              sx={{ display: "flex", py: 2, borderBottom: "1px solid #eee" }}
+            >
+              <Image
+                src={item.product.image_url || "/placeholder.png"} // Use uma imagem placeholder se não houver
+                alt={item.product.name}
+                width={60}
+                height={60}
+                style={{
+                  objectFit: "cover",
+                  borderRadius: theme.shape.borderRadius,
+                  marginRight: theme.spacing(2),
+                }}
+              />
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="body1" fontWeight="bold">
+                  {item.product.name}
+                </Typography>
+                {/* Renderizar adicionais */}
+                {item.additionalOptions &&
+                  Object.keys(item.additionalOptions).length > 0 && (
+                    <Box sx={{ mt: 0.5 }}>
+                      {Object.entries(item.additionalOptions).map(
+                        ([additionalId, quantity]) => {
+                          const additional = flatAdditionals[additionalId];
+                          if (!additional || quantity === 0) return null;
+                          return (
+                            <Typography
+                              key={additionalId}
+                              variant="body2"
+                              color="text.secondary"
+                            >
+                              + {quantity}x {additional.name} (R${" "}
+                              {(additional.price * quantity).toFixed(2)})
+                            </Typography>
+                          );
+                        }
+                      )}
+                    </Box>
+                  )}
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.5 }}
+                >
+                  R$ {calcularPrecoItem(item).toFixed(2)}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <IconButton
+                  size="small"
+                  onClick={() =>
+                    handleQuantityChange(item.product.id, item.quantity - 1)
+                  }
+                  disabled={item.quantity <= 1}
+                >
+                  <Remove fontSize="small" />
+                </IconButton>
+                <Typography variant="body1" sx={{ mx: 1 }}>
+                  {item.quantity}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() =>
+                    handleQuantityChange(item.product.id, item.quantity + 1)
+                  }
+                >
+                  <Add fontSize="small" />
+                </IconButton>
+              </Box>
+            </Box>
+          ))}
+        </Collapse>
+      </Box>
+
+      {/* Observações */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
           Observações
         </Typography>
         <TextField
           fullWidth
           multiline
           rows={3}
-          variant="outlined"
-          placeholder="Adicione alguma observação ao seu pedido..."
+          placeholder="Alguma observação sobre o pedido?"
           value={observations}
           onChange={(e) => setObservations(e.target.value)}
+          variant="outlined"
         />
       </Box>
     </Paper>
@@ -438,64 +508,64 @@ export default function CheckoutPage() {
       elevation={0}
       sx={{ p: 3, border: "1px solid", borderColor: "divider" }}
     >
-      <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+      <Typography variant="h6" sx={{ mb: 2 }}>
         Endereço de Entrega
       </Typography>
-      <TextField
-        fullWidth
-        label="Rua"
-        variant="outlined"
-        margin="normal"
-        value={address.street}
-        onChange={(e) => setAddress({ ...address, street: e.target.value })}
-        required
-      />
-      <TextField
-        fullWidth
-        label="Número"
-        variant="outlined"
-        margin="normal"
-        value={address.number}
-        onChange={(e) => setAddress({ ...address, number: e.target.value })}
-        required
-      />
-      <TextField
-        fullWidth
-        label="Complemento (Opcional)"
-        variant="outlined"
-        margin="normal"
-        value={address.complement}
-        onChange={(e) => setAddress({ ...address, complement: e.target.value })}
-      />
-      <TextField
-        fullWidth
-        label="Bairro"
-        variant="outlined"
-        margin="normal"
-        value={address.neighborhood}
-        onChange={(e) =>
-          setAddress({ ...address, neighborhood: e.target.value })
-        }
-        required
-      />
-      <TextField
-        fullWidth
-        label="Cidade"
-        variant="outlined"
-        margin="normal"
-        value={address.city}
-        onChange={(e) => setAddress({ ...address, city: e.target.value })}
-        required
-      />
-      <TextField
-        fullWidth
-        label="CEP"
-        variant="outlined"
-        margin="normal"
-        value={address.zipCode}
-        onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
-        required
-      />
+      <Box
+        component="form"
+        noValidate
+        autoComplete="off"
+        sx={{ display: "grid", gap: 2 }}
+      >
+        <TextField
+          label="CEP"
+          fullWidth
+          value={address.zipCode}
+          onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
+          // Adicionar lógica para buscar endereço pelo CEP
+        />
+        <TextField
+          label="Rua"
+          fullWidth
+          value={address.street}
+          onChange={(e) => setAddress({ ...address, street: e.target.value })}
+          required
+        />
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <TextField
+            label="Número"
+            fullWidth
+            value={address.number}
+            onChange={(e) => setAddress({ ...address, number: e.target.value })}
+            required
+          />
+          <TextField
+            label="Complemento (Opcional)"
+            fullWidth
+            value={address.complement}
+            onChange={(e) =>
+              setAddress({ ...address, complement: e.target.value })
+            }
+          />
+        </Box>
+        <TextField
+          label="Bairro"
+          fullWidth
+          value={address.neighborhood}
+          onChange={(e) =>
+            setAddress({ ...address, neighborhood: e.target.value })
+          }
+          required
+        />
+        <TextField
+          label="Cidade"
+          fullWidth
+          value={address.city}
+          onChange={(e) => setAddress({ ...address, city: e.target.value })}
+          required
+        />
+        {/* Adicionar campo para Estado se necessário */}
+      </Box>
     </Paper>
   );
 
@@ -504,21 +574,19 @@ export default function CheckoutPage() {
       elevation={0}
       sx={{ p: 3, border: "1px solid", borderColor: "divider" }}
     >
-      <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+      <Typography variant="h6" sx={{ mb: 2 }}>
         Forma de Pagamento
       </Typography>
       <RadioGroup
         value={paymentMethod.type}
-        onChange={(e) =>
-          setPaymentMethod({ type: e.target.value as PaymentMethod["type"] })
-        }
+        onChange={(e) => setPaymentMethod({ type: e.target.value as any })}
       >
         <FormControlLabel
           value="credit"
           control={<Radio />}
           label={
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <CreditCard sx={{ mr: 1 }} /> Cartão de Crédito/Débito
+              <CreditCard sx={{ mr: 1 }} /> Cartão (Crédito/Débito)
             </Box>
           }
         />
@@ -527,7 +595,19 @@ export default function CheckoutPage() {
           control={<Radio />}
           label={
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              {/* Ícone de PIX, se tiver */} PIX
+              {/* Ícone de PIX */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="24px"
+                viewBox="0 0 24 24"
+                width="24px"
+                fill="#000000"
+                style={{ marginRight: theme.spacing(1) }}
+              >
+                <path d="M0 0h24v24H0z" fill="none" />
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+              </svg>
+              PIX
             </Box>
           }
         />
@@ -536,20 +616,27 @@ export default function CheckoutPage() {
           control={<Radio />}
           label={
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              {/* Ícone de Dinheiro, se tiver */} Dinheiro na Entrega
+              {/* Ícone de Dinheiro */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="24px"
+                viewBox="0 0 24 24"
+                width="24px"
+                fill="#000000"
+                style={{ marginRight: theme.spacing(1) }}
+              >
+                <path d="M0 0h24v24H0z" fill="none" />
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+              </svg>
+              Dinheiro na Entrega
             </Box>
           }
         />
       </RadioGroup>
-      {/* Adicionar campos específicos para cada método, se necessário (ex: troco para dinheiro) */}
       {paymentMethod.type === "cash" && (
-        <TextField
-          fullWidth
-          label="Precisa de troco para quanto?"
-          variant="outlined"
-          margin="normal"
-          placeholder="Ex: Preciso de troco para R$ 50,00"
-        />
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Prepare o valor em dinheiro. O troco será calculado na entrega.
+        </Alert>
       )}
     </Paper>
   );
@@ -559,41 +646,28 @@ export default function CheckoutPage() {
       elevation={0}
       sx={{ p: 3, border: "1px solid", borderColor: "divider" }}
     >
-      <Box sx={{ textAlign: "center", mb: 3 }}>
-        <CheckCircle sx={{ fontSize: 60, color: "success.main", mb: 2 }} />
-        <Typography variant="h5" fontWeight="bold">
-          Confirmar Pedido
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Resumo Final do Pedido
+      </Typography>
+      <Box sx={{ mb: 2 }}>
+        {/* Usando estados locais para exibir nome e telefone (APENAS PARA TESTE) */}
+        <Typography variant="subtitle2" fontWeight="bold">
+          Cliente:
         </Typography>
-        <Typography color={color}>
-          Revise os dados antes de finalizar
+        <Typography variant="body2">
+          {userName || "Nome não informado"}
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          {userPhone || "Telefone não informado"}
+        </Typography>
+
+        <Typography variant="subtitle2" fontWeight="bold">
+          Tipo de Entrega:
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          {deliveryType === "delivery" ? "Entrega" : "Retirada no Local"}
         </Typography>
       </Box>
-
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          Resumo do Pedido
-        </Typography>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-          <Typography>Subtotal</Typography>
-          <Typography>R$ {subtotal.toFixed(2)}</Typography>
-        </Box>
-        {deliveryType === "delivery" && (
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-            <Typography>Taxa de Entrega</Typography>
-            <Typography>R$ {deliveryFee.toFixed(2)}</Typography>
-          </Box>
-        )}
-        <Divider sx={{ my: 1 }} />
-        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-          <Typography variant="h6" fontWeight="bold">
-            Total
-          </Typography>
-          <Typography variant="h6" fontWeight="bold" color="success.main">
-            R$ {total.toFixed(2)}
-          </Typography>
-        </Box>
-      </Box>
-
       {deliveryType === "delivery" && (
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle2" fontWeight="bold">
@@ -608,7 +682,6 @@ export default function CheckoutPage() {
           </Typography>
         </Box>
       )}
-
       <Box sx={{ mb: 2 }}>
         <Typography variant="subtitle2" fontWeight="bold">
           Forma de Pagamento:
@@ -619,7 +692,6 @@ export default function CheckoutPage() {
           {paymentMethod.type === "cash" && "Dinheiro na Entrega"}
         </Typography>
       </Box>
-
       <Box sx={{ mb: 2 }}>
         <Typography variant="subtitle2" fontWeight="bold">
           Tempo Estimado:
@@ -676,7 +748,6 @@ export default function CheckoutPage() {
           ))}
         </Stepper>
       </Box>
-
       <Box
         sx={{
           display: "flex",
@@ -686,7 +757,6 @@ export default function CheckoutPage() {
       >
         {/* Conteúdo Principal */}
         <Box sx={{ flex: 1 }}>{getStepContent(activeStep)}</Box>
-
         {/* Resumo Lateral */}
         <Box
           sx={{
@@ -740,7 +810,6 @@ export default function CheckoutPage() {
                 </Typography>
               </Box>
             </Box>
-
             <Box
               sx={{
                 display: "flex",
@@ -763,14 +832,18 @@ export default function CheckoutPage() {
                 onClick={handleNext}
                 disabled={
                   loading ||
+                  // Desabilita se não estiver logado E não estiver no passo de confirmação (onde o modal é forçado)
+                  (!isLoggedIn && activeStep < steps.length - 1) ||
+                  // Desabilita botão "Continuar" se carrinho vazio na revisão
+                  (activeStep === 0 && items.length === 0) ||
+                  // Desabilita se for entrega e o endereço não estiver completo
                   (activeStep === 1 &&
                     deliveryType === "delivery" &&
                     (!address.street ||
                       !address.number ||
                       !address.neighborhood ||
                       !address.city ||
-                      !address.zipCode)) ||
-                  (activeStep === 0 && items.length === 0) // Desabilita botão "Continuar" se carrinho vazio na revisão
+                      !address.zipCode))
                 }
                 fullWidth
                 size="large"
@@ -793,6 +866,15 @@ export default function CheckoutPage() {
           </Paper>
         </Box>
       </Box>
+
+      {/* Adicione o componente LoginModal aqui */}
+      <LoginModal
+        open={isLoginModalOpen}
+        onClose={handleCloseLoginModal}
+        onLogin={handleUserLogin} // Esta função agora apenas atualiza estados locais
+        restaurantId={restaurant?.id}
+        themeColor={restaurant?.color || "#ff0000"}
+      />
     </Container>
   );
 }

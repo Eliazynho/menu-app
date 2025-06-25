@@ -1,3 +1,20 @@
+export interface UserData {
+  client: {
+    id: string;
+    restaurant_id: string;
+    name: string;
+    phone: string;
+    created_at: string;
+  };
+  token: string;
+}
+
+export interface userCreate {
+  name: string;
+  phone: string;
+  restaurant_id: string;
+}
+
 export interface ProductByCategory {
   id: string;
   name: string;

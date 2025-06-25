@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -13,7 +14,8 @@ import {
   Product,
   ProductByCategory,
   AdditionalOption,
-} from "@/types"; // Importe AdditionalOption se necessário para tipagem local, mas o Record já o usa
+  AdditionalCategory, // Importe AdditionalCategory também
+} from "@/types";
 import CartBar from "@/components/CartBar";
 import { getProducts } from "@/pages/api/products";
 import { getRestaurantBySlug } from "@/pages/api/restaurants";
@@ -23,10 +25,17 @@ import { addToCart, clearCart } from "../../redux/actions/cartActions";
 import { useAdditionals } from "../../hooks/useAdditionals";
 import {
   calculateCartTotal,
-  // flattenAdditionals, // <-- Remova esta importação, pois não será mais usada diretamente aqui
   getAdditionalsByCategory,
-  createAdditionalsMap, // <-- Importe a nova função
+  createAdditionalsMap,
 } from "../../redux/utils/cartUtils";
+import {
+  fetchRestaurantStart,
+  fetchRestaurantSuccess,
+  fetchRestaurantFailure,
+} from "@/redux/slices/restaurantSlice";
+import { RestaurantState } from "@/redux/slices/restaurantSlice";
+import { RootState } from "@/redux/store";
+import { useSelector } from "react-redux";
 
 // Função auxiliar para scroll suave
 function easeInOutQuad(t: number, b: number, c: number, d: number) {
@@ -44,6 +53,7 @@ function isRestaurantOpen(openingHours: string): boolean {
   const now = new Date();
   const openTime = new Date(now.setHours(openingHour, openingMinute, 0, 0));
   const closeTime = new Date(now.setHours(closingHour, closingMinute, 0, 0));
+
   // Ajuste para lidar com horários que passam da meia-noite, se necessário
   // Por simplicidade, assume que o fechamento é no mesmo dia ou no dia seguinte cedo.
   if (closeTime < openTime) {
@@ -69,81 +79,87 @@ export default function RestaurantePage() {
   const cartItems = useAppSelector((state) => state.cart.items);
   const cartRestaurant = useAppSelector((state) => state.cart.restaurant);
 
+  // ✅ ALTERADO: Usando a variável 'restaurant' obtida do Redux (corretamente tipada)
+
   // State
-  const [restaurantData, setRestaurantData] = useState<Restaurant | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [openModal, setOpenModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
-  const [loading, setLoading] = useState<boolean>(true);
   const [productsByCategory, setProductsByCategory] = useState<
     ProductByCategory[]
   >([]);
 
+  const [loading, setLoading] = useState(true);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+
   // 🎯 ETAPA 1: Carregar APENAS o restaurante
   useEffect(() => {
     async function fetchRestaurant() {
-      if (!query.slug) return;
+      if (!query.slug || typeof query.slug !== "string") return;
+      dispatch(fetchRestaurantStart());
       try {
-        setLoading(true);
         const rest = await getRestaurantBySlug(query.slug as string);
         if (!rest) {
           console.log("Restaurante não encontrado, redirecionando para 404");
+          dispatch(fetchRestaurantFailure("Restaurante não encontrado."));
           router.push("/404");
           return;
         }
+
+        setRestaurant(rest);
         console.log("✅ Restaurante encontrado:", rest.name);
-        setRestaurantData(rest);
+        console.log("✅ ID do restaurante:", rest.id);
+        async function fetchProducts(restfetch: Restaurant) {
+          try {
+            // ✅ ALTERADO: Usando 'restaurant?.name' em vez de 'restaurantData?.name'
+            console.log("🔄 Carregando produtos para:", restfetch.name);
+            // Adiciona verificação de null para restaurant
+            if (!restfetch) return;
+            // ✅ ALTERADO: Usando 'restaurant.id' em vez de 'restaurantData.id'
+            const prods = await getProducts(restfetch.id);
+            console.log(prods);
+            setProductsByCategory(prods);
+            console.log("✅ Produtos carregados:", prods.length, "categorias");
+          } catch (err) {
+            console.error("❌ Erro ao carregar produtos:", err);
+            // Tratar erro de produtos (ex: exibir mensagem, manter lista vazia)
+          }
+        }
+        await fetchProducts(rest);
+        dispatch(fetchRestaurantSuccess(rest));
+        console.log("✅ Restaurante carregado com sucesso!", rest);
+        setLoading(false);
       } catch (err) {
         console.error("❌ Erro ao carregar restaurante:", err);
+        dispatch(fetchRestaurantFailure("Erro ao carregar restaurante.")); // Adiciona o erro ao estado Redux
         router.push("/404"); // Redireciona para 404 em caso de erro na API também
-      } finally {
-        // O loading geral só termina quando o restaurante é carregado.
-        // O loading de produtos e adicionais é tratado pelos hooks/estados específicos.
-        setLoading(false);
       }
     }
     fetchRestaurant();
-  }, [query.slug, router]); // Dependências: slug do router e o objeto router
+  }, [query.slug, router, dispatch]); // Dependências: slug do router e o objeto router
 
-  // 🎯 ETAPA 2: Carregar produtos (só se restaurante existir)
-  useEffect(() => {
-    // Só busca produtos se o restaurantData estiver carregado
-    if (!restaurantData) return;
-
-    async function fetchProducts() {
-      try {
-        console.log("🔄 Carregando produtos para:", restaurantData?.name);
-        if (!restaurantData) return;
-        const prods = await getProducts(restaurantData.id);
-        setProductsByCategory(prods);
-        console.log("✅ Produtos carregados:", prods.length, "categorias");
-      } catch (err) {
-        console.error("❌ Erro ao carregar produtos:", err);
-        // Tratar erro de produtos (ex: exibir mensagem, manter lista vazia)
-      }
-    }
-    fetchProducts();
-  }, [restaurantData]); // Dependência: restaurantData
-
-  // 🎯 Hook de adicionais (só executa se restaurantData.id existir)
+  // 🎯 Hook de adicionais (só executa se restaurant.id existir)
   // Este hook já lida com seu próprio estado de loading/error
+  // ✅ ALTERADO: Passa o ID do 'restaurant' (obtido do Redux) ou undefined
   const { additionalCategories, additionalsLoading, additionalsError } =
-    useAdditionals(restaurantData?.id ?? undefined); // Passa o ID do restaurante ou undefined
+    useAdditionals(restaurant?.id ?? undefined);
 
   // Processamento dos adicionais para uso nos componentes
   const additionalsByCategory = getAdditionalsByCategory(additionalCategories);
 
-  // 🚨 Crie o mapa de adicionais para o CartBar usando a nova função
-  const additionalsMapForCart = createAdditionalsMap(additionalCategories); // <-- Use a nova função aqui
+  // Crie o mapa de adicionais para o CartBar usando a nova função
+  const additionalsMapForCart: Record<string, AdditionalOption> =
+    createAdditionalsMap(additionalCategories);
 
-  // Calcula o total do carrinho (a função calculateCartTotal já usa o mapa internamente agora)
+  // Calcula o total do carrinho
   const totalCarrinho = calculateCartTotal(cartItems, additionalCategories);
 
-  // Verifica o status de abertura (mantido)
-  const isOpen = restaurantData?.opening_hours
-    ? isRestaurantOpen(restaurantData.opening_hours)
+  // Verifica o status de abertura
+  // ✅ ALTERADO: Usa 'restaurant' para verificar opening_hours em vez de 'restaurantData'
+  const isOpen = restaurant?.opening_hours
+    ? isRestaurantOpen(restaurant.opening_hours)
     : false;
 
   // Toggle da barra do carrinho (mantido)
@@ -151,18 +167,20 @@ export default function RestaurantePage() {
     setCartOpen((prev) => !prev);
   };
 
-  // Lógica para adicionar item ao carrinho (mantida)
+  // Lógica para adicionar item ao carrinho
   const handleAddToCart = (
     product: Product,
     additionalOptions: Record<string, number> = {},
     quantity: number = 1
   ) => {
-    if (!restaurantData) return; // Garante que há dados do restaurante
+    // ✅ ALTERADO: Garante que há dados do 'restaurant' (obtido do Redux) em vez de 'restaurantData'
+    if (!restaurant) return;
 
     // Verifica se o item é de um restaurante diferente
-    if (cartRestaurant && cartRestaurant.id !== restaurantData.id) {
+    // ✅ ALTERADO: Usa 'restaurant.id' e 'restaurant.name' em vez de 'restaurantData.id'/'restaurantData.name'
+    if (cartRestaurant && cartRestaurant.id !== restaurant.id) {
       const confirmChange = window.confirm(
-        `Você já tem itens de ${cartRestaurant.name}. Deseja limpar o carrinho e adicionar itens de ${restaurantData.name}?`
+        `Você já tem itens de ${cartRestaurant.name}. Deseja limpar o carrinho e adicionar itens de ${restaurant.name}?`
       );
       if (confirmChange) {
         dispatch(clearCart()); // Limpa o carrinho se confirmado
@@ -175,12 +193,14 @@ export default function RestaurantePage() {
     dispatch(
       addToCart(
         {
-          id: restaurantData.id,
-          name: restaurantData.name,
-          logo_url: restaurantData.logo_url,
-          color: restaurantData.color,
-          // Inclua outras propriedades do restaurante que o CartRestaurant precisa
-          delivery_fee: restaurantData.delivery_fee, // Exemplo
+          // ✅ ALTERADO: Usa propriedades de 'restaurant' em vez de 'restaurantData'
+          id: restaurant.id,
+          name: restaurant.name,
+          logo_url: restaurant.logo_url,
+          color: restaurant.color,
+          // Inclua outras propriedades do 'restaurant' que o CartRestaurant precisa
+          delivery_fee: restaurant.delivery_fee,
+          // ... adicione outras propriedades necessárias do restaurante
         },
         product,
         quantity,
@@ -189,45 +209,43 @@ export default function RestaurantePage() {
     );
   };
 
-  // Lógica para abrir a modal de produto (mantida)
+  // Lógica para abrir o modal de produto
   const handleOpenModal = (product: Product) => {
     setSelectedProduct(product);
     setOpenModal(true);
   };
 
-  // Lógica para fechar a modal de produto (mantida)
+  // Lógica para fechar o modal de produto
   const handleCloseModal = () => {
-    setOpenModal(false);
     setSelectedProduct(null);
+    setOpenModal(false);
   };
 
-  // Filtra produtos por termo de busca (mantido)
-  const filteredProductsByCategory = productsByCategory.map((categoria) => ({
-    categoria: categoria.name,
-    produtos: categoria.products.filter((product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-  }));
+  // Filtragem de produtos por categoria e termo de busca
+  const filteredProductsByCategory = productsByCategory
+    .map((category) => ({
+      ...category,
+      produtos: category.products.filter(
+        (product) =>
+          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    }))
+    .filter((category) => category.produtos.length > 0); // Remove categorias vazias após a filtragem
 
-  // Scroll suave para a categoria (mantido)
-  const smoothScrollToCategory = (categoria: string) => {
-    const targetElement = document.getElementById(categoria);
-    if (!targetElement) return;
-    const startPosition = window.pageYOffset;
-    const targetPosition = targetElement.offsetTop;
-    const distance = targetPosition - startPosition;
-    const duration = 800;
-    let startTime = 0;
-    const animation = (currentTime: number) => {
-      if (startTime === 0) startTime = currentTime;
-      const progress = currentTime - startTime;
-      const scroll = easeInOutQuad(progress, startPosition, distance, duration);
-      window.scrollTo(0, scroll);
-      if (progress < duration) {
-        requestAnimationFrame(animation);
-      }
-    };
-    requestAnimationFrame(animation);
+  // Função para scroll suave até a categoria
+  const smoothScrollToCategory = (categoryId: string) => {
+    const element = document.getElementById(categoryId);
+    if (element) {
+      const headerOffset = 180; // Ajuste este valor conforme a altura do seu header/filtros fixos
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth",
+      });
+    }
   };
 
   // 🔄 Loading inicial (enquanto carrega o restaurante)
@@ -247,12 +265,13 @@ export default function RestaurantePage() {
     );
   }
 
-  // ❌ Se não encontrou restaurante, retorna null (já redirecionou no useEffect)
-  if (!restaurantData) {
+  // ❌ Se não encontrou restaurante ou houve erro, retorna null (já redirecionou no useEffect)
+  // ✅ ALTERADO: Verifica se 'restaurant' é null em vez de 'restaurantData'
+  if (!restaurant) {
     return null;
   }
 
-  // Renderização do componente
+  // Renderização do componente principal
   return (
     <Box>
       {/* Sidebar e CartBar posicionados absolutamente */}
@@ -269,30 +288,33 @@ export default function RestaurantePage() {
         }}
       >
         <Sidebar
+          // ✅ ALTERADO: Usa 'restaurant.logo_url' e 'restaurant.name' em vez de 'restaurantData'
           logo={
-            restaurantData.logo_url ||
+            restaurant.logo_url ||
             "https://static.ifood-static.com.br/image/upload/t_high/logosgde/c7e768e6-75ae-480d-95dc-c276672066ac/202406242002_DSVk_.jpeg" // Fallback logo
           }
-          nome={restaurantData.name}
+          nome={restaurant.name}
         />
         <CartBar
           open={cartOpen}
           onToggle={toggleCartBar}
           userName="Tiago" // Nome do usuário fixo ou obtido de outro lugar
-          color={restaurantData.color || "#1976d2"} // Cor do restaurante ou default
-          flatAdditionals={additionalsMapForCart} // <-- Passando o MAPA de adicionais aqui
+          // ✅ ALTERADO: Usa 'restaurant.color' em vez de 'restaurantData.color'
+          color={restaurant.color || "#1976d2"} // Cor do restaurante ou default
+          flatAdditionals={additionalsMapForCart} // Passando o MAPA de adicionais aqui
         />
       </Box>
 
       {/* Header do Restaurante */}
       <RestauranteHeader
-        nome={restaurantData.name}
-        imagemFundo={restaurantData.background_url}
-        logo={restaurantData.logo_url}
-        tempo={restaurantData.delivery_time}
-        minimo={restaurantData.minimum_order_value}
+        // ✅ ALTERADO: Usa propriedades de 'restaurant' em vez de 'restaurantData'
+        nome={restaurant.name}
+        imagemFundo={restaurant.background_url}
+        logo={restaurant.logo_url}
+        tempo={restaurant.delivery_time}
+        minimo={restaurant.minimum_order_value}
         status={isOpen ? "Aberto" : "Fechado"}
-        color={restaurantData.color}
+        color={restaurant.color}
       />
 
       {/* Conteúdo principal (filtros, produtos) */}
@@ -318,103 +340,89 @@ export default function RestaurantePage() {
               smoothScrollToCategory(category); // Scroll ao selecionar categoria
             }}
             onSearch={setSearchTerm} // Atualiza termo de busca
-            color={restaurantData.color || "#1976d2"}
+            // ✅ ALTERADO: Usa 'restaurant.color' em vez de 'restaurantData.color'
+            color={restaurant.color || "#1976d2"}
           />
           {/* Lista de Produtos */}
           <Box sx={{ mt: { xs: 2, sm: 0 } }}>
-            {/* Loading de produtos */}
-            {productsByCategory.length === 0 ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                <CircularProgress size={32} />
-                <Typography sx={{ ml: 2 }}>Carregando produtos...</Typography>
+            <Box sx={{ padding: 2 }}>
+              <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
+                Mais Vendidos
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  overflowX: "auto", // Scroll horizontal
+                  gap: 2,
+                  pb: 2, // Padding bottom para scrollbar
+                  "&::-webkit-scrollbar": { display: "none" }, // Esconde scrollbar no Webkit
+                  msOverflowStyle: "none", // Esconde scrollbar no IE/Edge
+                  scrollbarWidth: "none", // Esconde scrollbar no Firefox
+                }}
+              >
+                {productsByCategory
+                  .flatMap((cat) => cat.products) // Achata a lista de produtos
+                  .slice(0, 5) // Limita a 5, por exemplo
+                  .map((product) => (
+                    <Box key={product.id} sx={{ minWidth: 200 }}>
+                      <ProductCard
+                        product={product}
+                        variant="vertical" // Layout vertical para mais vendidos
+                        onAddToCart={(p) => handleAddToCart(p, {}, 1)}
+                        onClick={(p) => handleOpenModal(p)}
+                        color={restaurant.color || "#1976d2"} // ✅ ALTERADO: Usa 'restaurant.color'
+                      />
+                    </Box>
+                  ))}
               </Box>
-            ) : (
-              <>
-                {/* Seção de Mais Vendidos (Exemplo) */}
-                <Box sx={{ padding: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
-                    Mais Vendidos
-                  </Typography>
+            </Box>
+            {/* Listagem de Produtos por Categoria */}
+            {filteredProductsByCategory.map(
+              (categoria) =>
+                // Renderiza categorias apenas se tiverem produtos filtrados
+                categoria.produtos.length > 0 && (
                   <Box
-                    sx={{
-                      display: "flex",
-                      overflowX: "auto", // Permite scroll horizontal
-                      gap: 2,
-                      paddingBottom: 2,
-                      scrollSnapType: "x mandatory",
-                      "&::-webkit-scrollbar": { display: "none" }, // Esconde scrollbar no Webkit
-                      msOverflowStyle: "none", // Esconde scrollbar no IE/Edge
-                      scrollbarWidth: "none", // Esconde scrollbar no Firefox
-                    }}
+                    id={categoria.name} // ID para scroll suave
+                    key={categoria.name}
+                    sx={{ mb: 4, mt: 2 }}
                   >
-                    {productsByCategory
-                      .flatMap((cat) => cat.products) // Achata todos os produtos
-                      .slice(0, 5) // Pega os 5 primeiros como "Mais Vendidos"
-                      .map((product) => (
+                    <Typography
+                      variant="h6"
+                      fontWeight="bold"
+                      sx={{ mb: 2, px: 2 }} // Adiciona padding horizontal
+                    >
+                      {categoria.name}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap", // Quebra linha para múltiplos itens
+                        gap: 2,
+                        justifyContent: "space-between", // Espaço entre os itens
+                        px: 2, // Adiciona padding horizontal aos cards
+                      }}
+                    >
+                      {categoria.produtos.map((product) => (
                         <Box
                           key={product.id}
-                          sx={{
-                            flex: "0 0 auto", // Impede o item de crescer/diminuir
-                            width: { xs: "60%", sm: "35%", md: "18%" }, // Largura responsiva
-                          }}
+                          sx={{ width: { xs: "100%", sm: "calc(50% - 8px)" } }} // Largura responsiva, ajustando para o gap
                         >
                           <ProductCard
                             product={product}
-                            variant="vertical" // Layout vertical
-                            onClick={() => handleOpenModal(product)} // Abre modal ao clicar
-                            color={restaurantData.color || "#1976d2"}
+                            variant="horizontal" // Layout horizontal
+                            onAddToCart={(product) => {
+                              // Adiciona ao carrinho diretamente (sem adicionais)
+                              handleAddToCart(product, {}, 1);
+                            }}
+                            onClick={(product) => handleOpenModal(product)} // Abre modal para adicionar com adicionais
+                            // ✅ ALTERADO: Usa 'restaurant.color' em vez de 'restaurantData.color'
+                            color={restaurant.color || "#1976d2"} // Passa a cor para o ProductCard
                           />
                         </Box>
                       ))}
+                    </Box>
                   </Box>
-                </Box>
-
-                {/* Listagem de Produtos por Categoria */}
-                {filteredProductsByCategory.map(
-                  (categoria) =>
-                    // Renderiza categorias apenas se tiverem produtos filtrados
-                    categoria.produtos.length > 0 && (
-                      <Box
-                        id={categoria.categoria} // ID para scroll suave
-                        key={categoria.categoria}
-                        sx={{ mb: 4, mt: 2 }}
-                      >
-                        <Typography
-                          variant="h6"
-                          fontWeight="bold"
-                          sx={{ mb: 2 }}
-                        >
-                          {categoria.categoria}
-                        </Typography>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexWrap: "wrap", // Quebra linha para múltiplos itens
-                            gap: 2,
-                            justifyContent: "space-between", // Espaço entre os itens
-                          }}
-                        >
-                          {categoria.produtos.map((product) => (
-                            <Box
-                              key={product.id}
-                              sx={{ width: { xs: "100%", sm: "48%" } }} // Largura responsiva
-                            >
-                              <ProductCard
-                                product={product}
-                                variant="horizontal" // Layout horizontal
-                                onAddToCart={(product) => {
-                                  // Adiciona ao carrinho diretamente (sem adicionais)
-                                  handleAddToCart(product, {}, 1);
-                                }}
-                                onClick={(product) => handleOpenModal(product)} // Abre modal para adicionar com adicionais
-                              />
-                            </Box>
-                          ))}
-                        </Box>
-                      </Box>
-                    )
-                )}
-              </>
+                )
             )}
           </Box>
         </LayoutRestaurante>
@@ -429,7 +437,8 @@ export default function RestaurantePage() {
         additionalsByCategory={additionalsByCategory} // Passa adicionais agrupados (útil para a modal)
         additionalsLoading={additionalsLoading} // Passa status de loading dos adicionais
         onAddToCart={handleAddToCart} // Função para adicionar ao carrinho (com adicionais)
-        color={restaurantData.color || "#1976d2"}
+        // ✅ ALTERADO: Usa 'restaurant.color' em vez de 'restaurantData.color'
+        color={restaurant.color || "#1976d2"}
       />
 
       {/* Botão "Ir para o carrinho" (sticky na parte inferior) */}
@@ -452,10 +461,11 @@ export default function RestaurantePage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              backgroundColor: `${restaurantData.color}`, // Cor do botão
+              // ✅ ALTERADO: Usa 'restaurant.color' em vez de 'restaurantData.color'
+              backgroundColor: `${restaurant.color}`, // Cor do botão
               color: "white",
               "&:hover": {
-                backgroundColor: `${restaurantData.color}`, // Mantém a cor no hover
+                backgroundColor: `${restaurant.color}`, // Mantém a cor no hover
                 opacity: 0.9, // Pequena opacidade no hover
               },
               fontSize: "1rem",
@@ -467,7 +477,8 @@ export default function RestaurantePage() {
             Ir para o carrinho
             <Box
               sx={{
-                color: `${restaurantData.color}`, // Cor do texto do total
+                // ✅ ALTERADO: Usa 'restaurant.color' em vez de 'restaurantData.color'
+                color: `${restaurant.color}`, // Cor do texto do total
                 backgroundColor: "white",
                 borderRadius: "4px",
                 padding: "2px 8px",
@@ -496,8 +507,9 @@ export default function RestaurantePage() {
             zIndex: 9999,
           }}
         >
+          {/* ✅ ALTERADO: Usa propriedades de 'restaurant' em vez de 'restaurantData' */}
           <Typography variant="caption" display="block">
-            ✅ Restaurant: {restaurantData.name}
+            ✅ Restaurant: {restaurant.name}
           </Typography>
           <Typography variant="caption" display="block">
             📦 Products: {productsByCategory.length} categorias
@@ -517,6 +529,13 @@ export default function RestaurantePage() {
           <Typography variant="caption" display="block">
             CartBar flatAdditionals Type: Record&lt;string, AdditionalOption&gt;
           </Typography>
+          {/* Adicione mais informações de debug se necessário */}
+          {/* <Typography variant="caption" display="block">
+            Loading Restaurante: {loading ? "true" : "false"}
+          </Typography>
+          <Typography variant="caption" display="block">
+            Erro Restaurante: {error || "none"}
+          </Typography> */}
         </Box>
       )}
     </Box>

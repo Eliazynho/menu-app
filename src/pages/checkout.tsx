@@ -254,6 +254,7 @@ export default function CheckoutPage() {
           // ✅ Remove o set de estado local de login, pois agora é gerenciado pelo Redux
           setIsLoggedIn(true); // REMOVER
           localStorage.setItem("token", res.token);
+          localStorage.setItem("user", JSON.stringify(res.client));
 
           // ✅ Mantém o set de estado local para fechar o modal, se o modal for local
           setIsLoginModalOpen(false);

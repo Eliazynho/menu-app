@@ -80,16 +80,6 @@ const LoginModal: React.FC<LoginModalProps> = ({
     }
   };
 
-  const token = localStorage.getItem("token");
-
-  if (token) {
-    return (
-      <div>
-        <p>Token: {token}</p>
-      </div>
-    );
-  }
-
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       {/* Correção do erro de aninhamento H2/H6 */}

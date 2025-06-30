@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useMemo, useEffect } from "react";
@@ -45,7 +46,7 @@ import Image from "next/image";
 import { useRouter } from "next/router";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/redux/reducers";
-import { CartItem, userCreate } from "@/types";
+import { CartItem, CepAddress, Order, userCreate } from "@/types";
 import {
   changeCartQuantity,
   // Você precisará de uma action para atualizar a quantidade de adicional
@@ -55,7 +56,9 @@ import {
 // Importe o componente LoginModal
 import LoginModal from "@/components/ModalLogin"; // Ajuste o caminho conforme a localização do seu arquivo
 import { LOGIN_SUCCESS } from "@/redux/actions/authActions";
-import { createClient } from "./api/auth";
+import { createClient, validateUser } from "./api/auth";
+import { getAddressByCep } from "./api/cep";
+import { createNewOrder } from "./api/orders";
 
 // Estrutura para um adicional (assumindo que você terá um ID agora)
 interface AdditionalOption {
@@ -75,7 +78,7 @@ interface DeliveryAddress {
 }
 
 interface PaymentMethod {
-  type: "credit" | "pix" | "cash";
+  type: "credit" | "pix" | "money";
 }
 
 const steps = [
@@ -102,6 +105,7 @@ export default function CheckoutPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState<string>("");
   const [userPhone, setUserPhone] = useState<string>("");
+  const [order, setOrder] = useState<Order | null>(null);
   // *** FIM ESTADOS LOCAIS PARA SIMULAR O LOGIN ***
 
   // Isso garante que o mapa só seja reconstruído se as categorias mudarem
@@ -136,9 +140,6 @@ export default function CheckoutPage() {
     neighborhood: "",
     city: "",
     zipCode: "",
-    // Você pode inicializar com dados do usuário logado aqui se tiver
-    // street: userAddress?.street || "",
-    // ...
   });
 
   // Estados para pagamento
@@ -152,14 +153,52 @@ export default function CheckoutPage() {
 
   const color = restaurant?.color || "#ff0000";
 
-  // Efeito para abrir o modal de login assim que a página carregar, se o usuário não estiver logado
   useEffect(() => {
-    // Só abre o modal se o usuário NÃO estiver logado E ainda não tivermos tentado mostrar na carga
-    if (!isLoggedIn && !hasShownLoginModalOnLoad) {
+    const checkLogin = async () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        const validate = await validateUser(token);
+        if (validate) {
+          console.log("✅ Token valido", validate);
+          localStorage.setItem("user", JSON.stringify(validate));
+          setIsLoggedIn(true);
+          setUserPhone(validate.phone);
+          setUserName(validate.name);
+          return; // já está logado, não abre modal
+        }
+      }
+
+      // Se não está logado, abrir modal uma vez
       setIsLoginModalOpen(true);
-      setHasShownLoginModalOnLoad(true); // Marca que já tentamos mostrar
-    }
-  }, [isLoggedIn, hasShownLoginModalOnLoad]); // Depende do estado de login local e da flag
+      setHasShownLoginModalOnLoad(true);
+    };
+
+    checkLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // só roda uma vez no mount
+
+  useEffect(() => {
+    const cepLimpo = address?.zipCode.replace(/\D/g, "");
+
+    const fetchAddress = async () => {
+      if (cepLimpo.length === 8) {
+        try {
+          const data = await getAddressByCep(cepLimpo);
+
+          setAddress((prev) => ({
+            ...prev,
+            street: data.logradouro || "",
+            neighborhood: data.bairro || "",
+            city: data.localidade || "",
+          }));
+        } catch (error) {
+          console.error("Erro ao buscar endereço:", error);
+        }
+      }
+    };
+
+    fetchAddress();
+  }, [address?.zipCode]);
 
   // Função para calcular o preço do item (agora usando o mapa flatAdditionals construído das categorias)
   function calcularPrecoItem(item: CartItem): number {
@@ -214,7 +253,7 @@ export default function CheckoutPage() {
 
           // ✅ Remove o set de estado local de login, pois agora é gerenciado pelo Redux
           setIsLoggedIn(true); // REMOVER
-          localStorage.setItem("token", JSON.stringify(res.token));
+          localStorage.setItem("token", res.token);
 
           // ✅ Mantém o set de estado local para fechar o modal, se o modal for local
           setIsLoginModalOpen(false);
@@ -289,38 +328,74 @@ export default function CheckoutPage() {
     deliveryType === "delivery" ? restaurant?.delivery_fee || 0 : 0; // Assumindo que a taxa de entrega está no objeto do restaurante
   const total = subtotal + deliveryFee;
 
-  const handleNext = () => {
-    // Se o usuário não estiver logado e não for o último passo (confirmação),
-    // force a abertura do modal de login e não avance.
+  const handleNext = async () => {
     if (!isLoggedIn && activeStep < steps.length - 1) {
       setIsLoginModalOpen(true);
-      return; // Não avança
+      return;
     }
 
     if (activeStep === steps.length - 1) {
-      // Último passo: Finalizar Pedido
       setLoading(true);
-      // *** Lógica de envio do pedido para o backend ***
-      console.log("Finalizando Pedido...");
-      console.log("Itens:", items);
-      console.log("Tipo de Entrega:", deliveryType);
-      console.log("Endereço:", address);
-      console.log("Método de Pagamento:", paymentMethod);
-      console.log("Observações:", observations);
-      console.log("Nome do Usuário:", userName); // Usando estado local
-      console.log("Telefone do Usuário:", userPhone); // Usando estado local
-      console.log("Total:", total);
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("Usuário não autenticado");
 
-      // Simule um delay para o envio
-      setTimeout(() => {
+        const clientData = JSON.parse(localStorage.getItem("user") || "{}");
+
+        const orderPayload = {
+          restaurant_id: restaurant?.id,
+          client_id: clientData?.id,
+          status: "Novo",
+          total: total,
+          description: items
+            .map((item) => {
+              const desc = `${item.quantity}x ${item.product.name}`;
+              const adds = Object.entries(item.additionalOptions || {})
+                .map(([id, qtd]) => {
+                  const add = flatAdditionals[id];
+                  return add ? ` ${qtd}x ${add.name}` : "";
+                })
+                .join(",");
+              return `${desc}${adds ? "," + adds : ""}`;
+            })
+            .join(", "),
+          payment_method: paymentMethod.type,
+          client_address_id:
+            deliveryType === "delivery"
+              ? "4c8a85b9-5a0e-4eab-bf30-85575513e354"
+              : "", // ou null, dependendo da API
+          items: items.map((item) => {
+            const additionals = Object.entries(
+              item.additionalOptions || {}
+            ).map(([additionalId, quantity]) => ({
+              additional_option_id: additionalId,
+              quantity,
+            }));
+
+            return {
+              product_id: item.product.id,
+              quantity: item.quantity,
+              ...(additionals.length > 0 ? { additionals } : {}),
+            };
+          }),
+        };
+
+        console.log(orderPayload);
+
+        const res = await createNewOrder(orderPayload, token);
+        if (res?.id) {
+          router.push(`/order-success?id=${res.id}`);
+        } else {
+          throw new Error("Erro ao criar pedido.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao finalizar pedido.");
+      } finally {
         setLoading(false);
-        // Redirecionar para uma página de sucesso ou mostrar confirmação final
-        alert("Pedido Finalizado! (Simulação)");
-        // router.push('/order-success'); // Exemplo
-      }, 2000);
+      }
     } else {
-      // Avança para o próximo passo
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      setActiveStep((prev) => prev + 1);
     }
   };
 
@@ -520,14 +595,14 @@ export default function CheckoutPage() {
         <TextField
           label="CEP"
           fullWidth
-          value={address.zipCode}
+          value={address?.zipCode}
           onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
           // Adicionar lógica para buscar endereço pelo CEP
         />
         <TextField
           label="Rua"
           fullWidth
-          value={address.street}
+          value={address?.street}
           onChange={(e) => setAddress({ ...address, street: e.target.value })}
           required
         />
@@ -535,14 +610,14 @@ export default function CheckoutPage() {
           <TextField
             label="Número"
             fullWidth
-            value={address.number}
+            value={address?.number}
             onChange={(e) => setAddress({ ...address, number: e.target.value })}
             required
           />
           <TextField
             label="Complemento (Opcional)"
             fullWidth
-            value={address.complement}
+            value={address?.complement}
             onChange={(e) =>
               setAddress({ ...address, complement: e.target.value })
             }
@@ -551,7 +626,7 @@ export default function CheckoutPage() {
         <TextField
           label="Bairro"
           fullWidth
-          value={address.neighborhood}
+          value={address?.neighborhood}
           onChange={(e) =>
             setAddress({ ...address, neighborhood: e.target.value })
           }
@@ -560,7 +635,7 @@ export default function CheckoutPage() {
         <TextField
           label="Cidade"
           fullWidth
-          value={address.city}
+          value={address?.city}
           onChange={(e) => setAddress({ ...address, city: e.target.value })}
           required
         />
@@ -612,7 +687,7 @@ export default function CheckoutPage() {
           }
         />
         <FormControlLabel
-          value="cash"
+          value="money"
           control={<Radio />}
           label={
             <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -633,7 +708,7 @@ export default function CheckoutPage() {
           }
         />
       </RadioGroup>
-      {paymentMethod.type === "cash" && (
+      {paymentMethod.type === "money" && (
         <Alert severity="info" sx={{ mt: 2 }}>
           Prepare o valor em dinheiro. O troco será calculado na entrega.
         </Alert>
@@ -674,11 +749,11 @@ export default function CheckoutPage() {
             Endereço de Entrega:
           </Typography>
           <Typography variant="body2">
-            {address.street}, {address.number}
-            {address.complement && `, ${address.complement}`}
+            {address?.street}, {address?.number}
+            {address?.complement && `, ${address.complement}`}
           </Typography>
           <Typography variant="body2">
-            {address.neighborhood}, {address.city} - {address.zipCode}
+            {address?.neighborhood}, {address?.street} - {address?.zipCode}
           </Typography>
         </Box>
       )}
@@ -689,7 +764,7 @@ export default function CheckoutPage() {
         <Typography variant="body2">
           {paymentMethod.type === "credit" && "Cartão"}
           {paymentMethod.type === "pix" && "PIX"}
-          {paymentMethod.type === "cash" && "Dinheiro na Entrega"}
+          {paymentMethod.type === "money" && "Dinheiro na Entrega"}
         </Typography>
       </Box>
       <Box sx={{ mb: 2 }}>
@@ -839,11 +914,11 @@ export default function CheckoutPage() {
                   // Desabilita se for entrega e o endereço não estiver completo
                   (activeStep === 1 &&
                     deliveryType === "delivery" &&
-                    (!address.street ||
-                      !address.number ||
+                    (!address?.street ||
                       !address.neighborhood ||
                       !address.city ||
-                      !address.zipCode))
+                      !address.zipCode ||
+                      !address.number))
                 }
                 fullWidth
                 size="large"

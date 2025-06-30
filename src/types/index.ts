@@ -9,6 +9,14 @@ export interface UserData {
   token: string;
 }
 
+export interface ValidateData {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  phone: string;
+  created_at: string;
+}
+
 export interface userCreate {
   name: string;
   phone: string;
@@ -112,4 +120,67 @@ export interface AdditionalsState {
   loading: boolean;
   error: string | null;
   currentRestaurantId: string | null;
+}
+
+export interface CepAddress {
+  cep: string;
+  logradouro: string;
+  complemento: string;
+  bairro: string;
+  localidade: string;
+  uf: string;
+  ibge: string;
+  gia: string;
+  ddd: string;
+  siafi: string;
+}
+
+export interface Order {
+  id: string;
+  restaurant_id: string;
+  client_id: string;
+  client_address_id: string;
+  status: "Novo" | "Preparando" | "Finalizado" | "Cancelado" | string;
+  total: number;
+  created_at: string;
+  description: string;
+  payment_method: "money" | "credit_card" | "pix" | string;
+  items: OrderItem[];
+}
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  price: number;
+  additionals: OrderItemAdditional[];
+}
+
+export interface OrderItemAdditional {
+  id: string;
+  order_item_id: string;
+  additional_option_id: string;
+  quantity: number;
+  created_at: string;
+  price: number;
+  name: string;
+}
+
+export interface OrderPayload {
+  restaurant_id: string;
+  client_id: string;
+  status: string;
+  total: number;
+  description: string;
+  payment_method: "money" | "credit" | "pix";
+  client_address_id?: string; // substitui client_address
+  items: {
+    product_id: string;
+    quantity: number;
+    additionals?: {
+      additional_option_id: string;
+      quantity: number;
+    }[];
+  }[];
 }
